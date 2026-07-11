@@ -1,8 +1,18 @@
+import { readFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import electronStub = require("./index.js");
 
 const patchMarker = Symbol.for("codex-web.electron-compat-patched");
 const patchedModule = electronStub as typeof electronStub & {
   [patchMarker]?: boolean;
+};
+
+type CodexAuthFile = {
+  tokens?: {
+    access_token?: unknown;
+    account_id?: unknown;
+  };
 };
 
 function resolveElectronFetchInput(input: string | URL): string | URL {
@@ -15,6 +25,77 @@ function resolveElectronFetchInput(input: string | URL): string | URL {
   }
 
   return `https://chatgpt.com/backend-api${input}`;
+}
+
+function getCodexAuthPath(): string {
+  const codexHome = process.env.CODEX_HOME?.trim();
+  if (codexHome) {
+    return path.join(codexHome, "auth.json");
+  }
+  return path.join(os.homedir(), ".codex", "auth.json");
+}
+
+async function readCodexAuthHeaders(): Promise<{
+  accessToken?: string;
+  accountId?: string;
+}> {
+  try {
+    const raw = await readFile(getCodexAuthPath(), "utf8");
+    const auth = JSON.parse(raw) as CodexAuthFile;
+    const accessToken = auth.tokens?.access_token;
+    const accountId = auth.tokens?.account_id;
+    return {
+      accessToken:
+        typeof accessToken === "string" && accessToken ? accessToken : undefined,
+      accountId:
+        typeof accountId === "string" && accountId ? accountId : undefined,
+    };
+  } catch (error) {
+    console.warn(
+      `[electron-main-stub] unable to read Codex auth file at ${getCodexAuthPath()}`,
+      error instanceof Error ? error.message : String(error),
+    );
+    return {};
+  }
+}
+
+function isChatGptRequest(input: string | URL): boolean {
+  try {
+    return new URL(String(input)).hostname === "chatgpt.com";
+  } catch {
+    return false;
+  }
+}
+
+async function resolveElectronFetchInit(
+  input: string | URL,
+  init?: RequestInit,
+): Promise<RequestInit | undefined> {
+  const headers = new Headers(init?.headers);
+  const attachAuth = headers.get("X-OpenAI-Attach-Auth") !== null;
+
+  if (!attachAuth || !isChatGptRequest(input)) {
+    return init;
+  }
+
+  const { accessToken, accountId } = await readCodexAuthHeaders();
+  headers.delete("X-OpenAI-Attach-Auth");
+  headers.delete("X-OpenAI-Attach-Integrity-State");
+
+  if (accessToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  if (accountId && !headers.has("ChatGPT-Account-ID")) {
+    headers.set("ChatGPT-Account-ID", accountId);
+  }
+  if (!headers.has("OAI-Product-Sku")) {
+    headers.set("OAI-Product-Sku", "codex");
+  }
+
+  return {
+    ...init,
+    headers,
+  };
 }
 
 if (!patchedModule[patchMarker]) {
@@ -68,7 +149,9 @@ if (!patchedModule[patchMarker]) {
     input: string | URL,
     init?: RequestInit,
   ): Promise<Response> {
-    return originalFetch(resolveElectronFetchInput(input), init);
+    const resolvedInput = resolveElectronFetchInput(input);
+    const resolvedInit = await resolveElectronFetchInit(resolvedInput, init);
+    return originalFetch(resolvedInput, resolvedInit);
   };
 
   patchedModule[patchMarker] = true;
