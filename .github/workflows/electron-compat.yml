@@ -16,6 +16,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run build:server
       - run: npm run test:electron-compat
