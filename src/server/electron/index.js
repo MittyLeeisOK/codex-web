@@ -10,6 +10,9 @@ function getIpcMainBridgeState() {
     return globals.__codexElectronIpcBridge;
 }
 function log(method, args) {
+    if (process.env.CODEX_WEB_ELECTRON_STUB_LOG !== "1") {
+        return;
+    }
     console.log(`[electron-main-stub] ${method}`, args);
 }
 const proxyAgents = new Map();
