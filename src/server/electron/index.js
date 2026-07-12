@@ -444,6 +444,10 @@ class BrowserWindow {
         }
         return BrowserWindow.getAllWindows()[0] ?? null;
     }
+    static fromId(id) {
+        log("BrowserWindow.fromId", [id]);
+        return (BrowserWindow.getAllWindows().find((window) => window.id === id) ?? null);
+    }
     static fromWebContents(webContents) {
         log("BrowserWindow.fromWebContents", [webContents]);
         if (!webContents) {

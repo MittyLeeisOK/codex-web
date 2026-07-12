@@ -51,6 +51,7 @@ declare class BrowserWindow {
     constructor(...args: unknown[]);
     static getAllWindows(): BrowserWindow[];
     static getFocusedWindow(): BrowserWindow | null;
+    static fromId(id: number): BrowserWindow | null;
     static fromWebContents(webContents: {
         id?: unknown;
     } | null | undefined): BrowserWindow | null;

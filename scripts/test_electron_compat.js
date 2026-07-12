@@ -49,6 +49,8 @@ async function main() {
       [window.id],
     );
     assert.equal(electron.BrowserWindow.getFocusedWindow()?.id, window.id);
+    assert.equal(electron.BrowserWindow.fromId(window.id)?.id, window.id);
+    assert.equal(electron.BrowserWindow.fromId(secondaryWindow.id), null);
     assert.deepEqual(
       electron.webContents.getAllWebContents().map((candidate) => candidate.id),
       [window.webContents.id],
