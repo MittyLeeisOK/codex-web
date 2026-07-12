@@ -366,9 +366,11 @@ class BrowserWindow {
     bounds = { x: 0, y: 0, width: 1280, height: 820 };
     webContents;
     emitter;
+    isPrimaryWindow;
     constructor(...args) {
         log("new BrowserWindow", args);
         this.id = BrowserWindow.nextId++;
+        this.isPrimaryWindow = BrowserWindow.webBridgeWindowId == null;
         BrowserWindow.webBridgeWindowId ??= this.id;
         this.emitter = createEmitterStub(`BrowserWindow#${this.id}`);
         const webContentsEmitter = createEmitterStub(`BrowserWindow#${this.id}.webContents`);
@@ -417,8 +419,10 @@ class BrowserWindow {
                 return createDeepStub(`BrowserWindow#${this.id}.webContents.${String(prop)}`);
             },
         });
-        BrowserWindow.allWindows.push(this);
-        BrowserWindow.focusedWindow = this;
+        if (this.isPrimaryWindow) {
+            BrowserWindow.allWindows.push(this);
+            BrowserWindow.focusedWindow = this;
+        }
         return new Proxy(this, {
             get: (target, prop) => {
                 if (prop in target) {
@@ -515,6 +519,9 @@ class BrowserWindow {
     }
     focus() {
         log(`BrowserWindow#${this.id}.focus`, []);
+        if (!this.isPrimaryWindow) {
+            return;
+        }
         BrowserWindow.focusedWindow = this;
         this.emitter.emit("focus");
     }

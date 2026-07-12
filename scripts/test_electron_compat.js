@@ -44,6 +44,18 @@ async function main() {
     const window = new electron.BrowserWindow();
     const secondaryWindow = new electron.BrowserWindow();
 
+    assert.deepEqual(
+      electron.BrowserWindow.getAllWindows().map((candidate) => candidate.id),
+      [window.id],
+    );
+    assert.equal(electron.BrowserWindow.getFocusedWindow()?.id, window.id);
+    assert.deepEqual(
+      electron.webContents.getAllWebContents().map((candidate) => candidate.id),
+      [window.webContents.id],
+    );
+    secondaryWindow.focus();
+    assert.equal(electron.BrowserWindow.getFocusedWindow()?.id, window.id);
+
     window.webContents.send("codex:test", { source: "primary" });
     secondaryWindow.webContents.send("codex:test", { source: "secondary" });
     assert.deepEqual(broadcasts, [

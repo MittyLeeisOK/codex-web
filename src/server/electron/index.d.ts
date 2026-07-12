@@ -47,6 +47,7 @@ declare class BrowserWindow {
     private bounds;
     webContents: Record<string, unknown>;
     private readonly emitter;
+    private readonly isPrimaryWindow;
     constructor(...args: unknown[]);
     static getAllWindows(): BrowserWindow[];
     static getFocusedWindow(): BrowserWindow | null;
