@@ -335,6 +335,7 @@ class BrowserWindow {
     static nextId = 1;
     static allWindows = [];
     static focusedWindow = null;
+    static webBridgeWindowId = null;
     id;
     destroyed = false;
     title = "Codex";
@@ -344,6 +345,7 @@ class BrowserWindow {
     constructor(...args) {
         log("new BrowserWindow", args);
         this.id = BrowserWindow.nextId++;
+        BrowserWindow.webBridgeWindowId ??= this.id;
         this.emitter = createEmitterStub(`BrowserWindow#${this.id}`);
         const webContentsEmitter = createEmitterStub(`BrowserWindow#${this.id}.webContents`);
         this.webContents = new Proxy({
@@ -371,6 +373,9 @@ class BrowserWindow {
             send: (...sendArgs) => {
                 log(`BrowserWindow#${this.id}.webContents.send`, sendArgs);
                 if (sendArgs.length === 0 || typeof sendArgs[0] !== "string") {
+                    return;
+                }
+                if (this.id !== BrowserWindow.webBridgeWindowId) {
                     return;
                 }
                 const [channel, ...args] = sendArgs;

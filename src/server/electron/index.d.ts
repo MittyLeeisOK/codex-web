@@ -40,6 +40,7 @@ declare class BrowserWindow {
     static nextId: number;
     static allWindows: BrowserWindow[];
     static focusedWindow: BrowserWindow | null;
+    static webBridgeWindowId: number | null;
     id: number;
     private destroyed;
     private title;

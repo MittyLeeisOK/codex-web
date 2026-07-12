@@ -450,6 +450,7 @@ class BrowserWindow {
   static nextId = 1;
   static allWindows: BrowserWindow[] = [];
   static focusedWindow: BrowserWindow | null = null;
+  static webBridgeWindowId: number | null = null;
   id: number;
   private destroyed = false;
   private title = "Codex";
@@ -460,6 +461,7 @@ class BrowserWindow {
   constructor(...args: unknown[]) {
     log("new BrowserWindow", args);
     this.id = BrowserWindow.nextId++;
+    BrowserWindow.webBridgeWindowId ??= this.id;
     this.emitter = createEmitterStub(`BrowserWindow#${this.id}`);
 
     const webContentsEmitter = createEmitterStub(
@@ -496,6 +498,9 @@ class BrowserWindow {
         send: (...sendArgs: unknown[]): void => {
           log(`BrowserWindow#${this.id}.webContents.send`, sendArgs);
           if (sendArgs.length === 0 || typeof sendArgs[0] !== "string") {
+            return;
+          }
+          if (this.id !== BrowserWindow.webBridgeWindowId) {
             return;
           }
           const [channel, ...args] = sendArgs as [string, ...unknown[]];

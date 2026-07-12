@@ -34,7 +34,23 @@ async function main() {
 
   try {
     const electron = require("../src/server/electron/compat.js");
+    const broadcasts = [];
+    globalThis.__codexElectronIpcBridge.broadcastToRenderer = (message) => {
+      broadcasts.push(message);
+    };
+
     const window = new electron.BrowserWindow();
+    const secondaryWindow = new electron.BrowserWindow();
+
+    window.webContents.send("codex:test", { source: "primary" });
+    secondaryWindow.webContents.send("codex:test", { source: "secondary" });
+    assert.deepEqual(broadcasts, [
+      {
+        type: "ipc-main-event",
+        channel: "codex:test",
+        args: [{ source: "primary" }],
+      },
+    ]);
 
     assert.equal(window.isVisible(), true);
     window.hide();
