@@ -13,6 +13,27 @@ function log(method, args) {
     console.log(`[electron-main-stub] ${method}`, args);
 }
 const proxyAgents = new Map();
+const browserUserAgent = "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
+function isChatGptRequest(input) {
+    try {
+        return new URL(String(input)).hostname === "chatgpt.com";
+    }
+    catch {
+        return false;
+    }
+}
+function resolveFetchInit(input, init) {
+    const resolvedInit = { ...init };
+    if (isChatGptRequest(input)) {
+        const headers = new Headers(init?.headers);
+        if (!headers.has("Accept")) {
+            headers.set("Accept", "application/json");
+        }
+        headers.set("User-Agent", browserUserAgent);
+        resolvedInit.headers = headers;
+    }
+    return resolvedInit;
+}
 function getProxyUrlForRequest(input) {
     let url;
     try {
@@ -625,10 +646,11 @@ const net = {
     async fetch(input, init) {
         // log("net.fetch", [input, init]);
         if (typeof globalThis.fetch === "function") {
+            const initWithHeaders = resolveFetchInit(input, init);
             const proxyUrl = getProxyUrlForRequest(input);
             const resolvedInit = proxyUrl
-                ? { ...init, dispatcher: getProxyAgent(proxyUrl) }
-                : { ...init };
+                ? { ...initWithHeaders, dispatcher: getProxyAgent(proxyUrl) }
+                : initWithHeaders;
             return globalThis.fetch(input, resolvedInit);
         }
         return new Response("", { status: 204 });

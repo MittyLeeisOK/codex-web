@@ -62,6 +62,29 @@ function log(method: string, args: unknown[]): void {
 }
 
 const proxyAgents = new Map<string, ProxyAgent>();
+const browserUserAgent =
+  "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
+
+function isChatGptRequest(input: string | URL): boolean {
+  try {
+    return new URL(String(input)).hostname === "chatgpt.com";
+  } catch {
+    return false;
+  }
+}
+
+function resolveFetchInit(input: string | URL, init?: RequestInit): RequestInit {
+  const resolvedInit: RequestInit = { ...init };
+  if (isChatGptRequest(input)) {
+    const headers = new Headers(init?.headers);
+    if (!headers.has("Accept")) {
+      headers.set("Accept", "application/json");
+    }
+    headers.set("User-Agent", browserUserAgent);
+    resolvedInit.headers = headers;
+  }
+  return resolvedInit;
+}
 
 function getProxyUrlForRequest(input: string | URL): string | undefined {
   let url: URL;
@@ -800,10 +823,11 @@ const net = {
   async fetch(input: string | URL, init?: RequestInit): Promise<Response> {
     // log("net.fetch", [input, init]);
     if (typeof globalThis.fetch === "function") {
+      const initWithHeaders = resolveFetchInit(input, init);
       const proxyUrl = getProxyUrlForRequest(input);
       const resolvedInit: FetchInitWithDispatcher = proxyUrl
-        ? { ...init, dispatcher: getProxyAgent(proxyUrl) }
-        : { ...init };
+        ? { ...initWithHeaders, dispatcher: getProxyAgent(proxyUrl) }
+        : initWithHeaders;
       return globalThis.fetch(input as URL | RequestInfo, resolvedInit);
     }
     return new Response("", { status: 204 });

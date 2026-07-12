@@ -9,6 +9,7 @@ const path = require("node:path");
 async function main() {
   const originalFetch = globalThis.fetch;
   const originalCodexHome = process.env.CODEX_HOME;
+  const originalHttpsProxy = process.env.HTTPS_PROXY;
   const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), "codex-web-auth-"));
   const requests = [];
 
@@ -23,6 +24,7 @@ async function main() {
     { mode: 0o600 },
   );
   process.env.CODEX_HOME = codexHome;
+  process.env.HTTPS_PROXY = "http://127.0.0.1:7892";
 
   globalThis.fetch = async (input, init) => {
     requests.push({ input: String(input), init });
@@ -69,6 +71,11 @@ async function main() {
     });
     await electron.net.fetch("/backend-api/ps/plugins/list");
     await electron.net.fetch("https://example.com/absolute");
+    await electron.net.fetch("https://chatgpt.com/backend-api/test", {
+      headers: {
+        "User-Agent": "Codex Desktop/test",
+      },
+    });
 
     assert.equal(
       requests[0].input,
@@ -90,6 +97,13 @@ async function main() {
     assert.equal(headers.has("x-openai-attach-auth"), false);
     assert.equal(headers.has("x-openai-attach-integrity-state"), false);
 
+    const unauthenticatedChatGptHeaders = new Headers(requests[1].init.headers);
+    assert.equal(unauthenticatedChatGptHeaders.get("accept"), "application/json");
+    assert.match(unauthenticatedChatGptHeaders.get("user-agent"), /Chrome\/120/);
+    assert.ok(requests[2].init.dispatcher);
+    const overriddenChatGptHeaders = new Headers(requests[3].init.headers);
+    assert.match(overriddenChatGptHeaders.get("user-agent"), /Chrome\/120/);
+
     console.log("Electron compatibility smoke test passed");
   } finally {
     globalThis.fetch = originalFetch;
@@ -97,6 +111,11 @@ async function main() {
       delete process.env.CODEX_HOME;
     } else {
       process.env.CODEX_HOME = originalCodexHome;
+    }
+    if (originalHttpsProxy === undefined) {
+      delete process.env.HTTPS_PROXY;
+    } else {
+      process.env.HTTPS_PROXY = originalHttpsProxy;
     }
     fs.rmSync(codexHome, { recursive: true, force: true });
   }
