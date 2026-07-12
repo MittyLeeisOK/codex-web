@@ -87,6 +87,10 @@ type WorkspaceDirectoryEntries = {
   entries: WorkspaceDirectoryEntry[];
 };
 
+function isBackendEndpointPath(pathname: string, endpoint: string): boolean {
+  return pathname === endpoint || pathname.endsWith(endpoint);
+}
+
 function workspaceDirectoryEntryTypeRank(
   entry: WorkspaceDirectoryEntry,
 ): number {
@@ -272,7 +276,15 @@ async function startIpcBridgeServer(options: ServerOptions): Promise<void> {
     path.join(os.tmpdir(), "codex-web-uploads-"),
   );
 
-  app.post("/__backend/upload", async (request, reply) => {
+  app.post("/*", async (request, reply) => {
+    const requestUrl = request.url ?? "/";
+    const host = request.headers.host ?? "localhost";
+    const url = new URL(requestUrl, `http://${host}`);
+
+    if (!isBackendEndpointPath(url.pathname, "/__backend/upload")) {
+      return reply.code(404).send({ error: "Not Found" });
+    }
+
     if (!request.isMultipart()) {
       return reply.code(400).send({ error: "expected multipart upload body" });
     }
@@ -328,7 +340,7 @@ async function startIpcBridgeServer(options: ServerOptions): Promise<void> {
     const requestUrl = request.url ?? "/";
     const host = request.headers.host ?? "localhost";
     const url = new URL(requestUrl, `http://${host}`);
-    if (url.pathname !== "/__backend/ipc") {
+    if (!isBackendEndpointPath(url.pathname, "/__backend/ipc")) {
       socket.destroy();
       return;
     }

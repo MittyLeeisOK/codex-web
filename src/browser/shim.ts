@@ -229,9 +229,12 @@ function ensureSocket(): void {
     return;
   }
 
-  socket = new WebSocket(
-    `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/__backend/ipc`,
-  );
+  const basePath = window.location.pathname.replace(/\/[^/]*$/, "/");
+  const backendPath = new URL("__backend/ipc", window.location.href);
+  backendPath.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  backendPath.pathname = `${basePath}__backend/ipc`.replace(/\/{2,}/g, "/");
+
+  socket = new WebSocket(backendPath);
   socket.addEventListener("open", () => {
     flushOutboundQueue();
   });

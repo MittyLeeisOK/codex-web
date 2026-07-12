@@ -88,7 +88,9 @@ async function uploadFiles(files: File[]) {
     return [];
   }
 
-  const uploadUrl = new URL("/__backend/upload", window.location.href);
+  const basePath = window.location.pathname.replace(/\/[^/]*$/, "/");
+  const uploadUrl = new URL("__backend/upload", window.location.href);
+  uploadUrl.pathname = `${basePath}__backend/upload`.replace(/\/{2,}/g, "/");
   const formData = new FormData();
 
   for (const file of files) {
