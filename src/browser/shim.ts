@@ -319,6 +319,37 @@ function isOpenInBrowserMessage(value: unknown): value is {
   );
 }
 
+function isStatsigTelemetryFetchMessage(value: unknown): value is {
+  method: string;
+  requestId: string;
+  url: string;
+} {
+  return (
+    isRecord(value) &&
+    typeof value.requestId === "string" &&
+    typeof value.method === "string" &&
+    value.method.toUpperCase() === "POST" &&
+    typeof value.url === "string" &&
+    value.url.startsWith("https://chatgpt.com/ces/v1/rgstr")
+  );
+}
+
+function handleStatsigTelemetryFetchMessage(message: {
+  requestId: string;
+}): Promise<void> {
+  emitRendererEvent("codex_desktop:message-for-view", [
+    {
+      type: "fetch-response",
+      responseType: "success",
+      requestId: message.requestId,
+      status: 204,
+      headers: { "content-type": "application/json" },
+      bodyJsonString: "{}",
+    },
+  ]);
+  return Promise.resolve();
+}
+
 function requestWorkspaceDirectoryEntries(
   directoryPath: string | null,
 ): Promise<WorkspaceDirectoryEntries> {
@@ -339,6 +370,27 @@ const mobileMediaQuery = matchMedia("(max-width: 768px)");
 const initialSidebarState = !mobileMediaQuery.matches;
 const electronShim = (window.__ELECTRON_SHIM__ ??= {});
 const buildFlavor: "prod" | "dev" | "agent" | string = "prod";
+
+const originalFetch = globalThis.fetch?.bind(globalThis);
+if (originalFetch) {
+  globalThis.fetch = (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Response> => {
+    const url =
+      typeof input === "string" || input instanceof URL
+        ? String(input)
+        : input.url;
+
+    // Statsig event logging is telemetry-only. Loaded from mitty.space, this
+    // endpoint returns a Cloudflare challenge page and floods the console.
+    if (url.startsWith("https://chatgpt.com/ces/v1/rgstr")) {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+
+    return originalFetch(input, init);
+  };
+}
 
 Object.assign(globalThis, {
   process: {
@@ -415,6 +467,10 @@ electronShim.onMemoryNavigationChanged = (navigation) => {
 export const ipcRenderer = {
   invoke(channel: string, ...args: unknown[]): Promise<unknown> {
     if (channel === "codex_desktop:message-from-view" && args.length === 1) {
+      if (isStatsigTelemetryFetchMessage(args[0])) {
+        return handleStatsigTelemetryFetchMessage(args[0]);
+      }
+
       if (isOpenInBrowserMessage(args[0])) {
         window.open(args[0].url, "_blank", "noopener,noreferrer");
       }
