@@ -1,11 +1,43 @@
 --- a/webview/index.html
 +++ b/webview/index.html
-@@ -2,7 +2,8 @@
+@@ -2,7 +2,40 @@
  <html lang="en" data-build="<!-- PROD_BUILD_TAG_HERE -->">
    <head>
      <!-- PROD_BASE_TAG_HERE -->
      <!-- PROD_CSP_TAG_HERE -->
 +    <script type="module" src="./assets/preload.js"></script>
++    <link
++      rel="preload"
++      href="./assets/OpenAISans-Regular-DFZxHTKM.woff2"
++      as="font"
++      type="font/woff2"
++      crossorigin
++    />
++    <link
++      rel="preload"
++      href="./assets/OpenAISans-Medium-B7nJY_kG.woff2"
++      as="font"
++      type="font/woff2"
++      crossorigin
++    />
++    <style>
++      @font-face {
++        font-family: "OpenAI Sans";
++        src: url("./assets/OpenAISans-Regular-DFZxHTKM.woff2")
++          format("woff2");
++        font-weight: 400;
++        font-style: normal;
++        font-display: swap;
++      }
++
++      @font-face {
++        font-family: "OpenAI Sans";
++        src: url("./assets/OpenAISans-Medium-B7nJY_kG.woff2") format("woff2");
++        font-weight: 500 700;
++        font-style: normal;
++        font-display: swap;
++      }
++    </style>
      <meta charset="UTF-8" />
      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
      <title>Codex</title>
