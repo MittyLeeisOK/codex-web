@@ -79,6 +79,69 @@ nix shell github:0xcaff/codex-web github:0xcaff/codex-web#codex_remote_proxy -c 
 program to use; when run directly in a terminal it will wait for protocol input
 rather than opening an interactive prompt.
 
+## reverse proxying under a path prefix
+
+codex-web's built webview has no subpath/basePath support: `index.html` and
+its compiled JS chunks reference `/assets/...`, `/manifest.json`, and the
+`/__backend/*` IPC endpoints as **absolute root paths**, regardless of where
+`index.html` itself was fetched from. if you're putting `codex-web` behind a
+reverse proxy under a prefix (e.g. `https://your-domain/lab/codex/` instead
+of at the domain root), keep the following in mind.
+
+### proxy every root-level path the app references, not just the prefix
+
+a proxy block for your chosen prefix alone (e.g. `location /lab/codex/ { proxy_pass ...; }`)
+is not enough. you also need matching blocks for the root-level paths the
+built assets hard-reference: `/assets/`, `/manifest.json`, `/favicon.svg`, and
+`/__backend/ipc` (websocket) + `/__backend/upload`. list what codex-web
+actually ships (`ls scratch/asar/webview/`) and mirror each top-level
+file/directory with its own proxy or static-file location block - anything
+missed 404s and the app hangs on its loading screen indefinitely.
+
+`/__backend/ipc` is a websocket connection and needs the upgrade headers:
+
+```nginx
+location = /__backend/ipc {
+    proxy_pass http://127.0.0.1:8214;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 3600s;
+}
+```
+
+### `/thread/<id>` URLs are proxied at the domain root, not your prefix
+
+codex-web pushes conversation URLs into browser history as `/thread/<id>`
+(not under your chosen prefix), so a direct refresh of that URL must also
+resolve to the app - proxy `/thread/` itself, and mirror the same
+`/assets/`, `/manifest.json`, `/favicon.svg` blocks under `/thread/` too,
+since the browser resolves the app's relative asset paths against
+`/thread/<id>` when that's the current URL.
+
+### the app's internal "home" route needs your prefix, not `/`
+
+as of this writing, `src/browser/routes.ts` computes the browser-visible path
+for the app's internal home route from `window.location.pathname` at load
+time (falling back to a hardcoded default only for the root-proxied
+`/thread/<id>` entry point). if you're running an older build that hardcodes
+this to `"/"` instead: any internal navigation that passes through the home
+route (opening and closing the settings panel does) will silently rewrite
+the browser's address bar to the domain root via `pushState` - no page
+reload, so nothing looks wrong until the user hits refresh and lands on
+whatever your domain root actually serves instead of codex-web. rebuild from
+a current checkout if you hit this.
+
+### `gzip_static` serves stale compressed assets after a rebuild
+
+if your proxy serves codex-web's static assets directly (rather than
+proxying everything to the node process) and uses nginx's `gzip_static`
+module for them, note that it serves a prebuilt `.gz` sibling file whenever
+one exists, **without checking that it's newer than the source file**. after
+rebuilding (`npm run build:browser`), regenerate any `.gz` siblings for
+changed files (e.g. `gzip -k -f -9 assets/preload.js`) or clients will keep
+being served the old bundle despite the on-disk `.js` file being current.
+
 ## security
 
 run `codex-web` only on trusted networks. treat anyone who can reach the
