@@ -8,6 +8,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const electronStub = require("./index.js");
 const patchMarker = Symbol.for("codex-web.electron-compat-patched");
 const patchedModule = electronStub;
+const browserUserAgent = "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
 function resolveElectronFetchInput(input) {
     if (input instanceof URL || !input.startsWith("/")) {
         return input;
@@ -65,6 +66,12 @@ async function resolveElectronFetchInit(input, init) {
     }
     if (!headers.has("OAI-Product-Sku")) {
         headers.set("OAI-Product-Sku", "codex");
+    }
+    if (!headers.has("Accept")) {
+        headers.set("Accept", "application/json");
+    }
+    if (!headers.has("User-Agent")) {
+        headers.set("User-Agent", browserUserAgent);
     }
     return {
         ...init,

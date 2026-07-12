@@ -69,6 +69,8 @@ async function main() {
     assert.equal(headers.get("authorization"), "Bearer test-access-token");
     assert.equal(headers.get("chatgpt-account-id"), "test-account-id");
     assert.equal(headers.get("oai-product-sku"), "codex");
+    assert.equal(headers.get("accept"), "application/json");
+    assert.match(headers.get("user-agent"), /Chrome\/120/);
     assert.equal(headers.has("x-openai-attach-auth"), false);
     assert.equal(headers.has("x-openai-attach-integrity-state"), false);
 

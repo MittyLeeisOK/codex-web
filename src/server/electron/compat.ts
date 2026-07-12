@@ -7,6 +7,8 @@ const patchMarker = Symbol.for("codex-web.electron-compat-patched");
 const patchedModule = electronStub as typeof electronStub & {
   [patchMarker]?: boolean;
 };
+const browserUserAgent =
+  "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
 
 type CodexAuthFile = {
   tokens?: {
@@ -90,6 +92,12 @@ async function resolveElectronFetchInit(
   }
   if (!headers.has("OAI-Product-Sku")) {
     headers.set("OAI-Product-Sku", "codex");
+  }
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (!headers.has("User-Agent")) {
+    headers.set("User-Agent", browserUserAgent);
   }
 
   return {
