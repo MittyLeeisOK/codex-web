@@ -322,6 +322,28 @@ function isOpenInBrowserMessage(value: unknown): value is {
   );
 }
 
+function shouldOpenInNewBrowserTab(url: string): boolean {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return true;
+  }
+
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    return true;
+  }
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+  return !(
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0" ||
+    hostname === "[::1]" ||
+    hostname === "::1"
+  );
+}
+
 function isStatsigTelemetryFetchMessage(value: unknown): value is {
   method: string;
   requestId: string;
@@ -475,7 +497,9 @@ export const ipcRenderer = {
       }
 
       if (isOpenInBrowserMessage(args[0])) {
-        window.open(args[0].url, "_blank", "noopener,noreferrer");
+        if (shouldOpenInNewBrowserTab(args[0].url)) {
+          window.open(args[0].url, "_blank", "noopener,noreferrer");
+        }
       }
 
       if (isLocalFilePickerMessage(args[0])) {
