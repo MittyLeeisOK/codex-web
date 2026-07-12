@@ -77,11 +77,32 @@ type MemoryNavigationChange = {
   };
 };
 
+type ElectronAppInfo = {
+  appBrand: "codex";
+  appIconMedium: null;
+  appName: string;
+  buildFlavor: string;
+  buildNumber: null;
+  dockIconPreviews: null;
+  osName: string;
+  systemVersion: null;
+  version: string;
+};
+
+type ElectronWorkspaceFiles = {
+  downloadCopy?: (args: { hostId: string; path: string }) => Promise<void>;
+  getDownloadsFolderIcon?: () => Promise<string>;
+};
+
 type ElectronShimState = {
   initialRoute?: string;
   initialSidebarState?: boolean;
   closeSidebar?: () => void;
   services?: {
+    appInfo?: {
+      get: () => Promise<ElectronAppInfo>;
+    };
+    workspaceFiles?: ElectronWorkspaceFiles;
     requestUserInputAutoResolution?: {
       recordConversationActivity?: (args: {
         conversationId: string;
@@ -100,18 +121,6 @@ type ElectronShimState = {
     };
   };
   onMemoryNavigationChanged?: (navigation: MemoryNavigationChange) => void;
-  overrideAdapter?: {
-    getGateOverride?: (
-      e: StatsigGateEvaluation,
-      ...args: unknown[]
-    ) => StatsigGateEvaluation | null;
-  };
-};
-
-type StatsigGateEvaluation = {
-  name: string;
-  value: boolean;
-  [key: string]: unknown;
 };
 
 declare global {
@@ -329,6 +338,7 @@ const themeMediaQuery = matchMedia("(prefers-color-scheme: dark)");
 const mobileMediaQuery = matchMedia("(max-width: 768px)");
 const initialSidebarState = !mobileMediaQuery.matches;
 const electronShim = (window.__ELECTRON_SHIM__ ??= {});
+const buildFlavor: "prod" | "dev" | "agent" | string = "prod";
 
 Object.assign(globalThis, {
   process: {
@@ -342,33 +352,25 @@ Object.assign(globalThis, {
 
 electronShim.services = {
   ...electronShim.services,
+  appInfo: {
+    get: async () => ({
+      appBrand: "codex",
+      appIconMedium: null,
+      appName: "Codex",
+      buildFlavor,
+      buildNumber: null,
+      dockIconPreviews: null,
+      osName: "macOS",
+      systemVersion: null,
+      version: __CODEX_APP_VERSION__,
+    }),
+  },
+  workspaceFiles: electronShim.services?.workspaceFiles ?? {},
   requestUserInputAutoResolution: {
     ...electronShim.services?.requestUserInputAutoResolution,
     recordConversationActivity: () => undefined,
     setConversationPresented: () => undefined,
     snooze: () => undefined,
-  },
-};
-
-electronShim.overrideAdapter = {
-  getGateOverride(e) {
-    if (e.name === "2929582856") {
-      // codex_app_sunset
-      return {
-        ...e,
-        value: false,
-      };
-    }
-
-    if (e.name === "2478676115") {
-      // Profile Selector
-      return {
-        ...e,
-        value: true,
-      };
-    }
-
-    return null;
   },
 };
 
@@ -409,8 +411,6 @@ electronShim.onMemoryNavigationChanged = (navigation) => {
 
   window.history.pushState(undefined, "", browserPath.path);
 };
-
-const buildFlavor: "prod" | "dev" | "agent" | string = "prod";
 
 export const ipcRenderer = {
   invoke(channel: string, ...args: unknown[]): Promise<unknown> {
