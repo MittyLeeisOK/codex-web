@@ -1,3 +1,5 @@
+import { ProxyAgent } from "undici";
+
 type StubFunction = (...args: unknown[]) => unknown;
 type StubListener = (...args: unknown[]) => void;
 type StubWebContents = {
@@ -41,6 +43,9 @@ type IpcMainBridgeState = {
     sourceUrl?: string,
   ) => void;
 };
+type FetchInitWithDispatcher = RequestInit & {
+  dispatcher?: unknown;
+};
 
 function getIpcMainBridgeState(): IpcMainBridgeState {
   const globals = globalThis as typeof globalThis & {
@@ -54,6 +59,85 @@ function getIpcMainBridgeState(): IpcMainBridgeState {
 
 function log(method: string, args: unknown[]): void {
   console.log(`[electron-main-stub] ${method}`, args);
+}
+
+const proxyAgents = new Map<string, ProxyAgent>();
+
+function getProxyUrlForRequest(input: string | URL): string | undefined {
+  let url: URL;
+  try {
+    url = input instanceof URL ? input : new URL(input);
+  } catch {
+    return undefined;
+  }
+
+  if (shouldBypassProxy(url.hostname)) {
+    return undefined;
+  }
+
+  if (url.protocol === "https:") {
+    return (
+      process.env.HTTPS_PROXY ||
+      process.env.https_proxy ||
+      process.env.ALL_PROXY ||
+      process.env.all_proxy
+    );
+  }
+
+  if (url.protocol === "http:") {
+    return (
+      process.env.HTTP_PROXY ||
+      process.env.http_proxy ||
+      process.env.ALL_PROXY ||
+      process.env.all_proxy
+    );
+  }
+
+  return undefined;
+}
+
+function shouldBypassProxy(hostname: string): boolean {
+  const normalizedHostname = hostname.toLowerCase();
+  const noProxy = process.env.NO_PROXY || process.env.no_proxy || "";
+
+  for (const rawEntry of noProxy.split(",")) {
+    const entry = rawEntry.trim().toLowerCase();
+    if (!entry) {
+      continue;
+    }
+    if (entry === "*") {
+      return true;
+    }
+    if (entry === normalizedHostname) {
+      return true;
+    }
+    if (entry.startsWith(".")) {
+      const suffix = entry.slice(1);
+      if (
+        normalizedHostname === suffix ||
+        normalizedHostname.endsWith(`.${suffix}`)
+      ) {
+        return true;
+      }
+    }
+    if (
+      entry.startsWith("*.") &&
+      normalizedHostname.endsWith(entry.slice(1))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getProxyAgent(proxyUrl: string): ProxyAgent {
+  let agent = proxyAgents.get(proxyUrl);
+  if (!agent) {
+    agent = new ProxyAgent(proxyUrl);
+    proxyAgents.set(proxyUrl, agent);
+  }
+  return agent;
 }
 
 function createDeepStub(pathLabel: string): StubFunction {
@@ -711,7 +795,11 @@ const net = {
   async fetch(input: string | URL, init?: RequestInit): Promise<Response> {
     // log("net.fetch", [input, init]);
     if (typeof globalThis.fetch === "function") {
-      return globalThis.fetch(input as URL | RequestInfo, init);
+      const proxyUrl = getProxyUrlForRequest(input);
+      const resolvedInit: FetchInitWithDispatcher = proxyUrl
+        ? { ...init, dispatcher: getProxyAgent(proxyUrl) }
+        : { ...init };
+      return globalThis.fetch(input as URL | RequestInfo, resolvedInit);
     }
     return new Response("", { status: 204 });
   },
