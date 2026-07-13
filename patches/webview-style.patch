@@ -1,16 +1,11 @@
 --- a/webview/index.html
 +++ b/webview/index.html
-@@ -6,6 +6,9 @@
-     <script type="module" src="./assets/preload.js"></script>
-     <meta charset="UTF-8" />
+@@ -8 +8,4 @@
 -    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 +    <meta
 +      name="viewport"
 +      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
 +    />
-     <title>Codex</title>
-     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-     <link rel="manifest" href="./manifest.json" />
 @@ -131,6 +134,67 @@
          }
        }
@@ -76,6 +71,6 @@
 +        }
 +      })();
 +    </script>
-     <script type="module" crossorigin src="./assets/index-LQUNCOO3.js"></script>
+     <script type="module" crossorigin src="./assets/index-BtZb5ZU2.js"></script>
      <link
        rel="modulepreload"

@@ -256,8 +256,7 @@ const appBase = {
         return "Codex";
     },
     getVersion() {
-        log("app.getVersion", []);
-        return "26.623.141536";
+        return globalThis.__CODEX_SHIM_VALUES__.version;
     },
     getLocale() {
         log("app.getLocale", []);
@@ -756,7 +755,30 @@ const protocol = {
 exports.protocol = protocol;
 function createSessionStub(label) {
     const emitter = createEmitterStub(label);
+    const cookiesEmitter = createEmitterStub(`${label}.cookies`);
     return {
+        cookies: {
+            flushStore() {
+                log(`${label}.cookies.flushStore`, []);
+                return Promise.resolve();
+            },
+            get(...args) {
+                log(`${label}.cookies.get`, args);
+                return Promise.resolve([]);
+            },
+            off: cookiesEmitter.off,
+            on: cookiesEmitter.on,
+            once: cookiesEmitter.once,
+            remove(...args) {
+                log(`${label}.cookies.remove`, args);
+                return Promise.resolve();
+            },
+            removeListener: cookiesEmitter.removeListener,
+            set(...args) {
+                log(`${label}.cookies.set`, args);
+                return Promise.resolve();
+            },
+        },
         async loadExtension(extensionPath) {
             log(`${label}.loadExtension`, [extensionPath]);
             return {

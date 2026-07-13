@@ -188,6 +188,12 @@ async function startIpcBridgeServer(options) {
             return reply.code(404).send({ error: "Not Found" });
         }
         if (request.method === "GET") {
+            const requestUrl = request.url ?? "/";
+            const host = request.headers.host ?? "localhost";
+            const url = new URL(requestUrl, `http://${host}`);
+            if (url.pathname.endsWith("/manifest.json")) {
+                return reply.sendFile("manifest.json");
+            }
             return reply.sendFile("index.html");
         }
         return reply.code(404).send({ error: "Not Found" });
@@ -290,6 +296,10 @@ async function startIpcBridgeServer(options) {
     console.log(`IPC bridge listening at ws://${options.host}:${options.port}`);
     ensureElectronLikeProcessContext();
     (0, module_1.installModuleAliasHook)();
+    const packageJson = JSON.parse(await promises_1.default.readFile(node_path_1.default.resolve(__dirname, "../../scratch/asar/package.json"), "utf8"));
+    globalThis.__CODEX_SHIM_VALUES__ = {
+        version: packageJson.version,
+    };
     const matches = await (0, glob_1.glob)("../../scratch/asar/.vite/build/main-*.js", {
         nodir: true,
         cwd: __dirname,

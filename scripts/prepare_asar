@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
+rm -rf scratch/ChatGPT.app scratch/asar
 unzip -o "$HOSTED_CODEX_APP_ZIP" -d scratch/
 asar extract "scratch/ChatGPT.app/Contents/Resources/app.asar" "scratch/asar"
 cp assets/* scratch/asar/webview/
@@ -18,23 +19,37 @@ if [[ -n "${DEV:-}" ]]; then
 else
   patched_files=()
   while IFS= read -r patched_file; do
-    patched_files+=("$patched_file")
+    if [[ -e "$patched_file" ]]; then
+      patched_files+=("$patched_file")
+    fi
   done < <(
     awk '/^\+\+\+ b\//{sub(/^\+\+\+ b\//, "scratch/asar/"); print}' patches/*.patch | sort -u
   )
-  prettier --ignore-path /dev/null --ignore-unknown --write "${patched_files[@]}"
+  if (( ${#patched_files[@]} )); then
+    prettier --ignore-path /dev/null --ignore-unknown --write "${patched_files[@]}"
+  fi
 fi
 patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-remove-csp.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-style.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-preload.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-favicon.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-pwa.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-thread-title.patch
+# Upstream 26.707.61608 moved the hosted window title atom out of this chunk.
+# Keep this patch disabled until the new state owner is mapped safely.
+# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-thread-title.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-initial-route.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-electron-shim-close-sidebar.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-prosemirror-inputmode.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-use-atfs-for-local-files.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-prompt-search-param.patch
+# Upstream 26.707.61608 reshuffled the sidebar controller chunk; skip until
+# the closeSidebar hook is remapped.
+# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-electron-shim-close-sidebar.patch
+# Upstream 26.707.61608 moved the composer editor factory into a minified
+# shared chunk. Remap the inputmode hook before enabling this again.
+# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-prosemirror-inputmode.patch
+# Upstream 26.707.61608 rewrote the path-display helper around the old Dot/Eot
+# expression. Remap before applying the local-file ATFS display patch.
+# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-use-atfs-for-local-files.patch
+# Upstream 26.707.61608 split the home/new-thread composer across new chunks.
+# Re-map both call sites before re-enabling prompt query-param prefill.
+# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-prompt-search-param.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-app-host-services.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/sentry-disable-shell.patch
 patch --batch --forward --strip 1 --directory scratch/asar < patches/sentry-disable-webview.patch

@@ -331,6 +331,13 @@ async function startIpcBridgeServer(options: ServerOptions): Promise<void> {
     }
 
     if (request.method === "GET") {
+      const requestUrl = request.url ?? "/";
+      const host = request.headers.host ?? "localhost";
+      const url = new URL(requestUrl, `http://${host}`);
+      if (url.pathname.endsWith("/manifest.json")) {
+        return reply.sendFile("manifest.json");
+      }
+
       return reply.sendFile("index.html");
     }
     return reply.code(404).send({ error: "Not Found" });

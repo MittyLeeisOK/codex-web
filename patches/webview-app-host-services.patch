@@ -1,32 +1,34 @@
---- a/webview/assets/app-initial~app-main~hotkey-window-thread-page~thread-app-shell-chrome~header~remote-conver~h59fr3q5-Cm3GYhJA.js
-+++ b/webview/assets/app-initial~app-main~hotkey-window-thread-page~thread-app-shell-chrome~header~remote-conver~h59fr3q5-Cm3GYhJA.js
-@@ -47078,7 +47078,17 @@
+--- a/webview/assets/app-initial~app-main~new-thread-panel-page~onboarding-page~login-route~appgen-library-page~~gpgl9un5-_t04Xpau.js
++++ b/webview/assets/app-initial~app-main~new-thread-panel-page~onboarding-page~login-route~appgen-library-page~~gpgl9un5-_t04Xpau.js
+@@ -23096,7 +23096,18 @@
            (super(), (this.#e = e));
          }
        }),
--      (qNe = new KNe({ appActions: lz, appUpdates: PNe, downloads: WNe })));
-+      (qNe = new KNe({
+-      (Eye = new Tye({ appActions: yx, appUpdates: pye, downloads: Cye })));
++      (Eye = new Tye({
 +        ...window.__ELECTRON_SHIM__?.services,
-+        appActions: lz,
-+        appUpdates: PNe,
-+        downloads: WNe,
++        appActions: yx,
++        appUpdates: pye,
++        downloads: Cye,
 +        requestUserInputAutoResolution: {
++          ...window.__ELECTRON_SHIM__?.services?.requestUserInputAutoResolution,
 +          recordConversationActivity: () => undefined,
 +          setConversationPresented: () => undefined,
 +          snooze: () => undefined,
 +        },
 +      })));
    });
- function YNe() {
+ function Oye() {
    let { port1: e, port2: t } = new MessageChannel();
-@@ -47092,6 +47102,10 @@
+@@ -23110,6 +23121,11 @@
    );
  }
- async function XNe() {
+ async function kye() {
 +  if (window.__ELECTRON_SHIM__ != null) {
-+    ((vz = qNe), (yz = qNe.services), yz.devboxService);
++    ((Ox = Eye), (kx = Eye.services), kx.devboxService);
 +    return;
 +  }
-   ((vz = YNe()), (yz = await vz.services), yz.devboxService);
++
+   ((Ox = Oye()), (kx = await Ox.services), kx.devboxService);
  }
- var vz,
+ var Ox,

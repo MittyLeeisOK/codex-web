@@ -1,10 +1,9 @@
 --- a/webview/index.html
 +++ b/webview/index.html
-@@ -9,6 +9,7 @@
-     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+@@ -11,6 +11,7 @@
      <title>Codex</title>
      <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-+    <link rel="manifest" href="./manifest.json" />
++    <link rel="manifest" href="/manifest.json" />
      <style>
        /* Dependency CSS can load before app.css, so establish Tailwind's layer order here. */
        @layer theme, base, components, utilities;

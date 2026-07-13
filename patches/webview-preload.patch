@@ -1,11 +1,5 @@
 --- a/webview/index.html
 +++ b/webview/index.html
-@@ -2,7 +2,8 @@
- <html lang="en" data-build="<!-- PROD_BUILD_TAG_HERE -->">
-   <head>
-     <!-- PROD_BASE_TAG_HERE -->
-     <!-- PROD_CSP_TAG_HERE -->
+@@ -6 +6,2 @@
 +    <script type="module" src="./assets/preload.js"></script>
      <meta charset="UTF-8" />
-     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-     <title>Codex</title>

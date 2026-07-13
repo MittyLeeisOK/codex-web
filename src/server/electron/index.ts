@@ -953,6 +953,16 @@ const protocol = {
   },
 };
 function createSessionStub(label: string): {
+  cookies: {
+    flushStore: () => Promise<void>;
+    get: (...args: unknown[]) => Promise<unknown[]>;
+    off: (event: string, listener: StubListener) => unknown;
+    on: (event: string, listener: StubListener) => unknown;
+    once: (event: string, listener: StubListener) => unknown;
+    remove: (...args: unknown[]) => Promise<void>;
+    removeListener: (event: string, listener: StubListener) => unknown;
+    set: (...args: unknown[]) => Promise<void>;
+  };
   getUserAgent: () => string;
   loadExtension: (extensionPath: string) => Promise<{
     id: string;
@@ -973,7 +983,30 @@ function createSessionStub(label: string): {
   };
 } {
   const emitter = createEmitterStub(label);
+  const cookiesEmitter = createEmitterStub(`${label}.cookies`);
   return {
+    cookies: {
+      flushStore(): Promise<void> {
+        log(`${label}.cookies.flushStore`, []);
+        return Promise.resolve();
+      },
+      get(...args: unknown[]): Promise<unknown[]> {
+        log(`${label}.cookies.get`, args);
+        return Promise.resolve([]);
+      },
+      off: cookiesEmitter.off,
+      on: cookiesEmitter.on,
+      once: cookiesEmitter.once,
+      remove(...args: unknown[]): Promise<void> {
+        log(`${label}.cookies.remove`, args);
+        return Promise.resolve();
+      },
+      removeListener: cookiesEmitter.removeListener,
+      set(...args: unknown[]): Promise<void> {
+        log(`${label}.cookies.set`, args);
+        return Promise.resolve();
+      },
+    },
     async loadExtension(extensionPath: string): Promise<{
       id: string;
       name: string;
