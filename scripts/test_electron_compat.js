@@ -68,6 +68,31 @@ async function main() {
       },
     ]);
 
+    await secondaryWindow.webContents.loadURL("http://localhost:5175/local/test");
+    assert.deepEqual(broadcasts.at(-1), {
+      type: "open-browser-url",
+      url: "http://localhost:5175/local/test",
+    });
+
+    electron.ipcMain.handle("codex:test:sanitize", (_event, payload) => payload);
+    const sanitizedPayload =
+      await globalThis.__codexElectronIpcBridge.handleRendererInvoke(
+        "codex:test:sanitize",
+        [
+          {
+            headers: {
+              "X-OpenAI-Attach-Auth": "true",
+              "X-OpenAI-Attach-Desktop-Surface": "true",
+              "X-OpenAI-Attach-DeviceCheck-Token": "true",
+              "X-OpenAI-Attach-Integrity-State": "true",
+            },
+          },
+        ],
+      );
+    assert.deepEqual(sanitizedPayload.headers, {
+      "X-OpenAI-Attach-Auth": "true",
+    });
+
     assert.equal(window.isVisible(), true);
     window.hide();
     assert.equal(window.isVisible(), false);
@@ -80,6 +105,14 @@ async function main() {
       headers: {
         "x-test-header": "preserved",
         "X-OpenAI-Attach-Auth": "true",
+        "X-OpenAI-Attach-DeviceCheck-Token": "true",
+        "X-OpenAI-Attach-Integrity-State": "true",
+      },
+    });
+    await electron.net.fetch("/celsius/ws/user", {
+      headers: {
+        "X-OpenAI-Attach-Auth": "true",
+        "X-OpenAI-Attach-DeviceCheck-Token": "true",
         "X-OpenAI-Attach-Integrity-State": "true",
       },
     });
@@ -90,6 +123,13 @@ async function main() {
         "User-Agent": "Codex Desktop/test",
       },
     });
+    await electron.net.fetch("https://chatgpt.com/backend-api/already-authed", {
+      headers: {
+        Authorization: "Bearer existing-token",
+        "X-OpenAI-Attach-DeviceCheck-Token": "true",
+        "X-OpenAI-Attach-Integrity-State": "true",
+      },
+    });
 
     assert.equal(
       requests[0].input,
@@ -97,9 +137,13 @@ async function main() {
     );
     assert.equal(
       requests[1].input,
+      "https://chatgpt.com/celsius/ws/user",
+    );
+    assert.equal(
+      requests[2].input,
       "https://chatgpt.com/backend-api/ps/plugins/list",
     );
-    assert.equal(requests[2].input, "https://example.com/absolute");
+    assert.equal(requests[3].input, "https://example.com/absolute");
 
     const headers = new Headers(requests[0].init.headers);
     assert.equal(headers.get("x-test-header"), "preserved");
@@ -109,14 +153,25 @@ async function main() {
     assert.equal(headers.get("accept"), "application/json");
     assert.match(headers.get("user-agent"), /Chrome\/120/);
     assert.equal(headers.has("x-openai-attach-auth"), false);
+    assert.equal(headers.has("x-openai-attach-devicecheck-token"), false);
     assert.equal(headers.has("x-openai-attach-integrity-state"), false);
 
-    const unauthenticatedChatGptHeaders = new Headers(requests[1].init.headers);
+    const celsiusHeaders = new Headers(requests[1].init.headers);
+    assert.equal(celsiusHeaders.has("x-openai-attach-auth"), false);
+    assert.equal(celsiusHeaders.has("x-openai-attach-devicecheck-token"), false);
+    assert.equal(celsiusHeaders.has("x-openai-attach-integrity-state"), false);
+    assert.equal(celsiusHeaders.get("authorization"), "Bearer test-access-token");
+
+    const unauthenticatedChatGptHeaders = new Headers(requests[2].init.headers);
     assert.equal(unauthenticatedChatGptHeaders.get("accept"), "application/json");
     assert.match(unauthenticatedChatGptHeaders.get("user-agent"), /Chrome\/120/);
-    assert.ok(requests[2].init.dispatcher);
-    const overriddenChatGptHeaders = new Headers(requests[3].init.headers);
+    assert.ok(requests[3].init.dispatcher);
+    const overriddenChatGptHeaders = new Headers(requests[4].init.headers);
     assert.match(overriddenChatGptHeaders.get("user-agent"), /Chrome\/120/);
+    const alreadyAuthedHeaders = new Headers(requests[5].init.headers);
+    assert.equal(alreadyAuthedHeaders.get("authorization"), "Bearer existing-token");
+    assert.equal(alreadyAuthedHeaders.has("x-openai-attach-devicecheck-token"), false);
+    assert.equal(alreadyAuthedHeaders.has("x-openai-attach-integrity-state"), false);
 
     console.log("Electron compatibility smoke test passed");
   } finally {

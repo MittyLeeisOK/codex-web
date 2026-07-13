@@ -27,11 +27,7 @@ type IpcMainEvent = {
 };
 
 type IpcMainBridgeState = {
-  broadcastToRenderer?: (message: {
-    type: "ipc-main-event";
-    channel: string;
-    args: unknown[];
-  }) => void;
+  broadcastToRenderer?: (message: MainToRendererBridgeMessage) => void;
   handleRendererInvoke?: (
     channel: string,
     args: unknown[],
@@ -43,6 +39,16 @@ type IpcMainBridgeState = {
     sourceUrl?: string,
   ) => void;
 };
+type MainToRendererBridgeMessage =
+  | {
+      type: "ipc-main-event";
+      channel: string;
+      args: unknown[];
+    }
+  | {
+      type: "open-browser-url";
+      url: string;
+    };
 type FetchInitWithDispatcher = RequestInit & {
   dispatcher?: unknown;
 };
@@ -67,6 +73,11 @@ function log(method: string, args: unknown[]): void {
 const proxyAgents = new Map<string, ProxyAgent>();
 const browserUserAgent =
   "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
+const electronOnlyChatGptHeaderNames = new Set([
+  "x-openai-attach-desktop-surface",
+  "x-openai-attach-devicecheck-token",
+  "x-openai-attach-integrity-state",
+]);
 
 function isChatGptRequest(input: string | URL): boolean {
   try {
@@ -87,6 +98,37 @@ function resolveFetchInit(input: string | URL, init?: RequestInit): RequestInit 
     resolvedInit.headers = headers;
   }
   return resolvedInit;
+}
+
+function sanitizeRendererIpcArgsForHeadlessElectron(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      value[index] = sanitizeRendererIpcArgsForHeadlessElectron(value[index]);
+    }
+    return value;
+  }
+
+  if (value == null || typeof value !== "object") {
+    return value;
+  }
+
+  if (value instanceof Headers) {
+    for (const headerName of electronOnlyChatGptHeaderNames) {
+      value.delete(headerName);
+    }
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (electronOnlyChatGptHeaderNames.has(key.toLowerCase())) {
+      delete record[key];
+      continue;
+    }
+    record[key] = sanitizeRendererIpcArgsForHeadlessElectron(record[key]);
+  }
+
+  return value;
 }
 
 function getProxyUrlForRequest(input: string | URL): string | undefined {
@@ -330,6 +372,7 @@ function createIpcMainStub(): {
       throw new Error(`[electron-main-stub] No ipcMain.handle for ${channel}`);
     }
     const event = createIpcMainEvent();
+    sanitizeRendererIpcArgsForHeadlessElectron(args);
     return await Promise.resolve(handler(event, ...args));
   };
 
@@ -339,6 +382,7 @@ function createIpcMainStub(): {
     sourceUrl?: string,
   ): void => {
     const event = createIpcMainEvent();
+    sanitizeRendererIpcArgsForHeadlessElectron(args);
     emitter.emit(channel, event, ...args);
   };
 
@@ -513,6 +557,12 @@ class BrowserWindow {
         loadURL: async (url: string): Promise<void> => {
           log(`BrowserWindow#${this.id}.webContents.loadURL`, [url]);
           (this.webContents.mainFrame as { url: string }).url = url;
+          if (!this.isPrimaryWindow) {
+            getIpcMainBridgeState().broadcastToRenderer?.({
+              type: "open-browser-url",
+              url,
+            });
+          }
         },
         loadFile: async (...loadFileArgs: unknown[]): Promise<void> => {
           log(`BrowserWindow#${this.id}.webContents.loadFile`, loadFileArgs);

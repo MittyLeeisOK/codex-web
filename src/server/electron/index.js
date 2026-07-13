@@ -17,6 +17,11 @@ function log(method, args) {
 }
 const proxyAgents = new Map();
 const browserUserAgent = "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
+const electronOnlyChatGptHeaderNames = new Set([
+    "x-openai-attach-desktop-surface",
+    "x-openai-attach-devicecheck-token",
+    "x-openai-attach-integrity-state",
+]);
 function isChatGptRequest(input) {
     try {
         return new URL(String(input)).hostname === "chatgpt.com";
@@ -36,6 +41,32 @@ function resolveFetchInit(input, init) {
         resolvedInit.headers = headers;
     }
     return resolvedInit;
+}
+function sanitizeRendererIpcArgsForHeadlessElectron(value) {
+    if (Array.isArray(value)) {
+        for (let index = 0; index < value.length; index += 1) {
+            value[index] = sanitizeRendererIpcArgsForHeadlessElectron(value[index]);
+        }
+        return value;
+    }
+    if (value == null || typeof value !== "object") {
+        return value;
+    }
+    if (value instanceof Headers) {
+        for (const headerName of electronOnlyChatGptHeaderNames) {
+            value.delete(headerName);
+        }
+        return value;
+    }
+    const record = value;
+    for (const key of Object.keys(record)) {
+        if (electronOnlyChatGptHeaderNames.has(key.toLowerCase())) {
+            delete record[key];
+            continue;
+        }
+        record[key] = sanitizeRendererIpcArgsForHeadlessElectron(record[key]);
+    }
+    return value;
 }
 function getProxyUrlForRequest(input) {
     let url;
@@ -225,10 +256,12 @@ function createIpcMainStub() {
             throw new Error(`[electron-main-stub] No ipcMain.handle for ${channel}`);
         }
         const event = createIpcMainEvent();
+        sanitizeRendererIpcArgsForHeadlessElectron(args);
         return await Promise.resolve(handler(event, ...args));
     };
     bridgeState.handleRendererSend = (channel, args, sourceUrl) => {
         const event = createIpcMainEvent();
+        sanitizeRendererIpcArgsForHeadlessElectron(args);
         emitter.emit(channel, event, ...args);
     };
     return {
@@ -388,6 +421,12 @@ class BrowserWindow {
             loadURL: async (url) => {
                 log(`BrowserWindow#${this.id}.webContents.loadURL`, [url]);
                 this.webContents.mainFrame.url = url;
+                if (!this.isPrimaryWindow) {
+                    getIpcMainBridgeState().broadcastToRenderer?.({
+                        type: "open-browser-url",
+                        url,
+                    });
+                }
             },
             loadFile: async (...loadFileArgs) => {
                 log(`BrowserWindow#${this.id}.webContents.loadFile`, loadFileArgs);

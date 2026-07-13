@@ -9,11 +9,15 @@ const electronStub = require("./index.js");
 const patchMarker = Symbol.for("codex-web.electron-compat-patched");
 const patchedModule = electronStub;
 const browserUserAgent = "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
+const chatGptRootPathPrefixes = ["/celsius/"];
 function resolveElectronFetchInput(input) {
     if (input instanceof URL || !input.startsWith("/")) {
         return input;
     }
     if (input.startsWith("/backend-api/")) {
+        return `https://chatgpt.com${input}`;
+    }
+    if (chatGptRootPathPrefixes.some((prefix) => input.startsWith(prefix))) {
         return `https://chatgpt.com${input}`;
     }
     return `https://chatgpt.com/backend-api${input}`;
@@ -52,12 +56,16 @@ function isChatGptRequest(input) {
 async function resolveElectronFetchInit(input, init) {
     const headers = new Headers(init?.headers);
     const attachAuth = headers.get("X-OpenAI-Attach-Auth") !== null;
-    if (!attachAuth || !isChatGptRequest(input)) {
+    const chatGptRequest = isChatGptRequest(input);
+    if (!chatGptRequest) {
         return init;
     }
-    const { accessToken, accountId } = await readCodexAuthHeaders();
     headers.delete("X-OpenAI-Attach-Auth");
+    headers.delete("X-OpenAI-Attach-DeviceCheck-Token");
     headers.delete("X-OpenAI-Attach-Integrity-State");
+    const { accessToken, accountId } = attachAuth
+        ? await readCodexAuthHeaders()
+        : {};
     if (accessToken && !headers.has("Authorization")) {
         headers.set("Authorization", `Bearer ${accessToken}`);
     }

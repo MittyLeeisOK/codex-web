@@ -61,6 +61,10 @@ type MainToRendererMessage =
       requestId: string;
       ok: false;
       errorMessage: string;
+    }
+  | {
+      type: "open-browser-url";
+      url: string;
     };
 
 const RECONNECT_DELAY_MS = 1_000;
@@ -170,6 +174,11 @@ export function emitRendererEvent(channel: string, args: unknown[]): void {
 function handleIncomingMessage(message: MainToRendererMessage): void {
   if (message.type === "ipc-main-event") {
     emitRendererEvent(message.channel, message.args);
+    return;
+  }
+
+  if (message.type === "open-browser-url") {
+    openUrlInBrowser(message.url);
     return;
   }
 
@@ -323,25 +332,56 @@ function isOpenInBrowserMessage(value: unknown): value is {
 }
 
 function shouldOpenInNewBrowserTab(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function toBrowserVisibleUrl(url: string): string {
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(url);
   } catch {
-    return true;
+    return url;
   }
 
   if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-    return true;
+    return url;
   }
 
   const hostname = parsedUrl.hostname.toLowerCase();
-  return !(
+  const isLoopbackHost =
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname === "0.0.0.0" ||
     hostname === "[::1]" ||
-    hostname === "::1"
-  );
+    hostname === "::1";
+
+  if (!isLoopbackHost) {
+    return url;
+  }
+
+  return `${window.location.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+}
+
+function openUrlInBrowser(url: string): void {
+  const targetUrl = toBrowserVisibleUrl(url);
+  const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
+  if (opened) {
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = targetUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.style.display = "none";
+  document.body.append(link);
+  link.click();
+  link.remove();
 }
 
 function isStatsigTelemetryFetchMessage(value: unknown): value is {
@@ -498,7 +538,7 @@ export const ipcRenderer = {
 
       if (isOpenInBrowserMessage(args[0])) {
         if (shouldOpenInNewBrowserTab(args[0].url)) {
-          window.open(args[0].url, "_blank", "noopener,noreferrer");
+          openUrlInBrowser(args[0].url);
         }
       }
 
