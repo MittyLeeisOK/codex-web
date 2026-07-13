@@ -6,12 +6,12 @@
 -    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 +    <meta
 +      name="viewport"
-+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
++      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
 +    />
      <title>Codex</title>
      <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
      <link rel="manifest" href="./manifest.json" />
-@@ -131,6 +134,89 @@
+@@ -131,6 +134,67 @@
          }
        }
      </style>
@@ -24,7 +24,8 @@
 +        html,
 +        body,
 +        #root {
-+          min-height: 100dvh;
++          height: var(--codex-web-visual-viewport-height, 100dvh);
++          min-height: var(--codex-web-visual-viewport-height, 100dvh);
 +          -webkit-text-size-adjust: 100%;
 +        }
 +
@@ -34,12 +35,6 @@
 +        .ProseMirror {
 +          font-size: 16px !important;
 +        }
-+
-+        html.codex-web-visual-keyboard-open,
-+        html.codex-web-visual-keyboard-open body,
-+        html.codex-web-visual-keyboard-open #root {
-+          height: var(--codex-web-visual-viewport-height, 100dvh);
-+        }
 +      }
 +    </style>
 +    <script>
@@ -48,53 +43,36 @@
 +        if (!viewport) return;
 +
 +        const root = document.documentElement;
-+        const editableSelector =
-+          "textarea,input,[contenteditable='true'],.ProseMirror";
-+        const isEditable = (element) =>
-+          element instanceof Element &&
-+          (element.matches(editableSelector) ||
-+            element.closest("[contenteditable='true'],.ProseMirror"));
-+
 +        const syncVisualViewport = () => {
 +          root.style.setProperty(
 +            "--codex-web-visual-viewport-height",
 +            `${Math.round(viewport.height)}px`,
 +          );
-+
-+          const keyboardOpen = window.innerHeight - viewport.height > 80;
-+          root.classList.toggle(
-+            "codex-web-visual-keyboard-open",
-+            keyboardOpen,
-+          );
-+
-+          if (keyboardOpen && isEditable(document.activeElement)) {
-+            requestAnimationFrame(() => {
-+              document.activeElement?.scrollIntoView({
-+                block: "nearest",
-+                inline: "nearest",
-+              });
-+            });
-+          }
 +        };
 +
-+        viewport.addEventListener("resize", syncVisualViewport, {
++        const scheduleViewportSync = () => {
++          syncVisualViewport();
++          requestAnimationFrame(syncVisualViewport);
++        };
++
++        viewport.addEventListener("resize", scheduleViewportSync, {
 +          passive: true,
 +        });
-+        viewport.addEventListener("scroll", syncVisualViewport, {
++        viewport.addEventListener("scroll", scheduleViewportSync, {
 +          passive: true,
 +        });
 +        window.addEventListener(
 +          "orientationchange",
-+          () => setTimeout(syncVisualViewport, 250),
++          () => setTimeout(scheduleViewportSync, 250),
 +          { passive: true },
 +        );
 +
 +        if (document.readyState === "loading") {
-+          document.addEventListener("DOMContentLoaded", syncVisualViewport, {
++          document.addEventListener("DOMContentLoaded", scheduleViewportSync, {
 +            once: true,
 +          });
 +        } else {
-+          syncVisualViewport();
++          scheduleViewportSync();
 +        }
 +      })();
 +    </script>
