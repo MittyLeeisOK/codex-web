@@ -77,6 +77,9 @@ Validation performed:
 | Startup failure messaging | `/root/mitty-space-v2/src/app/lab/codex/status/page.tsx` now shows concise evidence-based failure text: trigger reason, current phase, and backend service status. It avoids speculative wording such as network fluctuation guesses. |
 | Sidebar project grouping | Restored official persisted sidebar preference `flat-project-sidebar-preferences-v1.mode` from `list` to `project` and registered `/root/Documents/Codex` alongside `/root` in saved/active workspace roots and project order. Backup kept at `/root/.codex/.codex-global-state.json.bak-2026-07-13T03-18-58-226Z`. |
 | Desktop startup validation | Headless desktop browser check on `https://mitty.space/lab/codex/app/` showed `2/4 准备前端资源` while `.startup-loader` existed, `3/4 建立 IPC bridge` after it disappeared, and final sidebar project rows for `dotex`, `pasar-eazylink`, `root`, and `Codex`. |
+| Mobile card entry fix | `/root/mitty-space-v2/src/components/lab-tool-cards.tsx` now routes the Codex card through `/lab/codex` for signed-in users too, instead of directly opening `/lab/codex/app/`. This preserves the auth bridge and avoids mobile first-load white screens. |
+| Mobile bridge paint fix | `/root/mitty-space-v2/src/app/lab/codex/page.tsx` now requests automatic Codex opening only after the PRO bridge state has committed, then waits for the next paint before replacing the URL. This keeps a real bridge frame visible before the SPA navigation starts. |
+| Account return validation | `/m-account?mode=signin&next=%2Flab%2Fcodex` and `/lab/codex` both return `200` through the local Next server and nginx HTTPS entrypoint, so unauthenticated Codex card login returns to an existing bridge route. |
 | Temporary download cleanup | Removed `/tmp/tmp.TBu9ELCMSP`. |
 | Temporary download cleanup | Removed `/tmp/tmp.1wVAMNj4Yx`. |
 | Temporary download cleanup | Removed partial retry directory `/tmp/tmp.F9n9QAlaDv`. |
