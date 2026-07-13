@@ -201,8 +201,15 @@ async function getWorkspaceDirectoryEntries({
   directoryPath: string | null;
   directoriesOnly: boolean;
 }): Promise<WorkspaceDirectoryEntries> {
-  const requestedPath = directoryPath?.trim() || os.homedir();
+  const explicitDirectoryPath = directoryPath?.trim();
+  const requestedPath =
+    explicitDirectoryPath || path.join(os.homedir(), "CodexProjects");
   const resolvedPath = path.resolve(requestedPath);
+
+  if (!explicitDirectoryPath) {
+    await fs.mkdir(resolvedPath, { recursive: true });
+  }
+
   const stat = await fs.stat(resolvedPath);
   if (!stat.isDirectory()) {
     throw new Error(`Directory not found: ${requestedPath}`);

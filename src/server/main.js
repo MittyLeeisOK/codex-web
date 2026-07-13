@@ -93,8 +93,12 @@ function errorMessage(error) {
     return String(error);
 }
 async function getWorkspaceDirectoryEntries({ directoryPath, directoriesOnly, }) {
-    const requestedPath = directoryPath?.trim() || node_os_1.default.homedir();
+    const explicitDirectoryPath = directoryPath?.trim();
+    const requestedPath = explicitDirectoryPath || node_path_1.default.join(node_os_1.default.homedir(), "CodexProjects");
     const resolvedPath = node_path_1.default.resolve(requestedPath);
+    if (!explicitDirectoryPath) {
+        await promises_1.default.mkdir(resolvedPath, { recursive: true });
+    }
     const stat = await promises_1.default.stat(resolvedPath);
     if (!stat.isDirectory()) {
         throw new Error(`Directory not found: ${requestedPath}`);
