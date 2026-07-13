@@ -72,6 +72,10 @@ Validation performed:
 | Reverse proxy mobile/cache fix | `/etc/nginx/sites-available/mitty-space` now serves `/lab/codex/app/assets/` directly from `scratch/asar/webview/assets/`; missing stale chunks return `404` instead of SPA `index.html`, preventing cached mobile entrypoints from hanging at the frontend-resource phase. |
 | Reverse proxy validation | `/lab/codex/app/assets/preload.js` returns `200` with `private, no-cache`; real hashed chunks return `200` with immutable cache; missing nested chunks return `404` with `private, no-cache`. |
 | Mobile proxy validation | Headless mobile browser check on `https://mitty.space/lab/codex/app/` through nginx reported `hasStartupLoader=false`, `hasMittyOverlay=false`, no network failures, and normal IPC websocket traffic. |
+| Startup watchdog refinement | `/root/mitty-space-v2/public/codex-startup-watchdog.js` now uses six restrained progress phases and no longer exits just because `.startup-loader` disappears; desktop startup is covered until the real Codex sidebar DOM appears. |
+| Startup failure messaging | `/root/mitty-space-v2/src/app/lab/codex/status/page.tsx` now shows concise evidence-based failure text: trigger reason, current phase, and backend service status. It avoids speculative wording such as network fluctuation guesses. |
+| Sidebar project grouping | Restored official persisted sidebar preference `flat-project-sidebar-preferences-v1.mode` from `list` to `project` and registered `/root/Documents/Codex` alongside `/root` in saved/active workspace roots and project order. Backup kept at `/root/.codex/.codex-global-state.json.bak-2026-07-13T03-18-58-226Z`. |
+| Desktop startup validation | Headless desktop browser check on `https://mitty.space/lab/codex/app/` showed the Mitty overlay at `2/6 准备前端资源`, no network/runtime probe errors, and final sidebar project rows for `dotex`, `pasar-eazylink`, `root`, and `Codex`. |
 | Temporary download cleanup | Removed `/tmp/tmp.TBu9ELCMSP`. |
 | Temporary download cleanup | Removed `/tmp/tmp.1wVAMNj4Yx`. |
 | Temporary download cleanup | Removed partial retry directory `/tmp/tmp.F9n9QAlaDv`. |
