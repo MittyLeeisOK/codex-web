@@ -142,6 +142,28 @@ rebuilding (`npm run build:browser`), regenerate any `.gz` siblings for
 changed files (e.g. `gzip -k -f -9 assets/preload.js`) or clients will keep
 being served the old bundle despite the on-disk `.js` file being current.
 
+### deployment notes from a prefixed production install
+
+for a production install under a path prefix, keep the loading and failure
+states factual and short. in the mitty.space deployment, the outer site injects
+a small startup watchdog into `/lab/codex/app/` that shows a restrained
+multi-step loading state until the real codex sidebar DOM appears. if startup
+times out or the page catches an early frontend error, the watchdog redirects to
+a status page with only the trigger, current phase, and backend service health -
+avoid speculative messages such as "network fluctuation" unless the proxy or
+backend actually observed that.
+
+if you serve `/app/assets/` directly from the extracted webview directory,
+missing hashed chunks should return `404`, not `index.html`. returning HTML for
+a stale chunk makes mobile browsers execute the wrong response as JavaScript and
+can leave the app stuck on the frontend-resource phase after an upgrade.
+
+codex desktop also persists sidebar preferences in the codex global state. if
+the sidebar unexpectedly becomes a flat task list after an upstream update,
+check the official `flat-project-sidebar-preferences-v1` value before patching
+the UI. `mode: "project"` restores project grouping; `mode: "list"` is the flat
+thread list.
+
 ## security
 
 run `codex-web` only on trusted networks. treat anyone who can reach the
