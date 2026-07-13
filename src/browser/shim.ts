@@ -367,8 +367,25 @@ function toBrowserVisibleUrl(url: string): string {
   return `${window.location.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
 }
 
+let lastOpenedBrowserUrl = "";
+let lastOpenedBrowserUrlAt = 0;
+const OPEN_BROWSER_DEDUP_MS = 3000;
+
 function openUrlInBrowser(url: string): void {
   const targetUrl = toBrowserVisibleUrl(url);
+
+  const now = Date.now();
+  if (
+    targetUrl === lastOpenedBrowserUrl &&
+    now - lastOpenedBrowserUrlAt < OPEN_BROWSER_DEDUP_MS
+  ) {
+    console.warn("[browser] duplicate open blocked", targetUrl);
+    return;
+  }
+
+  lastOpenedBrowserUrl = targetUrl;
+  lastOpenedBrowserUrlAt = now;
+
   const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
   if (opened) {
     return;
