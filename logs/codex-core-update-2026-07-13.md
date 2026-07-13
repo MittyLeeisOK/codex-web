@@ -69,6 +69,9 @@ Validation performed:
 | Frontend hang root cause | Upstream `initializeAppHostServices()` now waits on a `connect-app-host` `MessageChannel`; the browser shim's `ipcRenderer.postMessage()` ignores calls with transferred ports, so the promise never resolved and React root render never started. |
 | Frontend hang validation | Headless browser check on `http://127.0.0.1:8214/` reported `hasStartupLoader=false`, `electronBridge=true`, no probe errors/rejections, and normal `__backend/ipc` websocket traffic. |
 | Runtime log validation | Service logs contain `[statsig-refresh-diagnostics] React root render requested` followed by routed `thread/list`, `plugin/list`, `account/read`, and other app-server requests. |
+| Reverse proxy mobile/cache fix | `/etc/nginx/sites-available/mitty-space` now serves `/lab/codex/app/assets/` directly from `scratch/asar/webview/assets/`; missing stale chunks return `404` instead of SPA `index.html`, preventing cached mobile entrypoints from hanging at the frontend-resource phase. |
+| Reverse proxy validation | `/lab/codex/app/assets/preload.js` returns `200` with `private, no-cache`; real hashed chunks return `200` with immutable cache; missing nested chunks return `404` with `private, no-cache`. |
+| Mobile proxy validation | Headless mobile browser check on `https://mitty.space/lab/codex/app/` through nginx reported `hasStartupLoader=false`, `hasMittyOverlay=false`, no network failures, and normal IPC websocket traffic. |
 | Temporary download cleanup | Removed `/tmp/tmp.TBu9ELCMSP`. |
 | Temporary download cleanup | Removed `/tmp/tmp.1wVAMNj4Yx`. |
 | Temporary download cleanup | Removed partial retry directory `/tmp/tmp.F9n9QAlaDv`. |
