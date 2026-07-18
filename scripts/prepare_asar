@@ -29,28 +29,25 @@ else
     prettier --ignore-path /dev/null --ignore-unknown --write "${patched_files[@]}"
   fi
 fi
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-remove-csp.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-style.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-preload.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-favicon.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-pwa.patch
-# Upstream 26.707.61608 moved the hosted window title atom out of this chunk.
-# Keep this patch disabled until the new state owner is mapped safely.
-# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-thread-title.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-initial-route.patch
-# Upstream 26.707.61608 reshuffled the sidebar controller chunk; skip until
-# the closeSidebar hook is remapped.
-# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-electron-shim-close-sidebar.patch
-# Upstream 26.707.61608 moved the composer editor factory into a minified
-# shared chunk. Remap the inputmode hook before enabling this again.
-# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-prosemirror-inputmode.patch
-# Upstream 26.707.61608 rewrote the path-display helper around the old Dot/Eot
-# expression. Remap before applying the local-file ATFS display patch.
-# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-use-atfs-for-local-files.patch
-# Upstream 26.707.61608 split the home/new-thread composer across new chunks.
-# Re-map both call sites before re-enabling prompt query-param prefill.
-# patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-prompt-search-param.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/webview-app-host-services.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/sentry-disable-shell.patch
-patch --batch --forward --strip 1 --directory scratch/asar < patches/sentry-disable-webview.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-remove-csp.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-style.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-preload.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-favicon.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-pwa.patch
+# Upstream 26.715.31925 moved the hosted window title atom again; the new
+# owner chunk was not uniquely identified this pass. Keep disabled until
+# re-mapped (see logs/codex-core-update-2026-07-18-assessment.md).
+# patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-thread-title.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-initial-route.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-electron-shim-close-sidebar.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-prosemirror-inputmode.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-use-atfs-for-local-files.patch
+# Upstream 26.715.31925 renumbered the React-compiler cache slots (.c(107)
+# -> .c(109)) across both composer call sites; the query-param prefill wiring
+# was not re-verified safe to auto-remap this pass. Keep disabled until
+# re-mapped (see logs/codex-core-update-2026-07-18-assessment.md).
+# patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-prompt-search-param.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-app-host-services.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/sentry-disable-shell.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/sentry-disable-webview.patch
 rm -rf scratch/asar/node_modules/better-sqlite3

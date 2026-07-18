@@ -1,11 +1,11 @@
---- a/webview/assets/app-initial~app-main~page-CMpPiY3-.js
-+++ b/webview/assets/app-initial~app-main~page-CMpPiY3-.js
-@@ -9573,7 +9573,7 @@
+--- a/webview/assets/app-initial~app-main~appgen-settings-page~page~appgen-library-page~appgen-page~appgen-setti~ogh9jurw-Ccxu2qV_.js
++++ b/webview/assets/app-initial~app-main~appgen-settings-page~page~appgen-library-page~appgen-page~appgen-setti~ogh9jurw-Ccxu2qV_.js
+@@ -3348,7 +3348,7 @@
    return (
-     t[0] !== n || t[1] !== r
-       ? ((i = (0, AM.jsx)(noe, {
+     t[1] !== n || t[2] !== r
+       ? ((a = (0, YP.jsxs)(Qee, {
 -          initialEntries: r,
 +          initialEntries: r ?? [window.__ELECTRON_SHIM__.initialRoute],
            unstable_useTransitions: !1,
-           children: n,
+           children: [i, n],
          })),

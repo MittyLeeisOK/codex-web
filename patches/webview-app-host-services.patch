@@ -1,34 +1,32 @@
---- a/webview/assets/app-initial~app-main~new-thread-panel-page~onboarding-page~login-route~appgen-library-page~~gpgl9un5-_t04Xpau.js
-+++ b/webview/assets/app-initial~app-main~new-thread-panel-page~onboarding-page~login-route~appgen-library-page~~gpgl9un5-_t04Xpau.js
-@@ -23096,7 +23096,18 @@
-           (super(), (this.#e = e));
+--- a/webview/assets/app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~notebook-preview-~l16cgjx9-CcJF-AY4.js
++++ b/webview/assets/app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~notebook-preview-~l16cgjx9-CcJF-AY4.js
+@@ -3887,10 +3887,17 @@
          }
        }),
--      (Eye = new Tye({ appActions: yx, appUpdates: pye, downloads: Cye })));
-+      (Eye = new Tye({
+       (Qn = new Zn({
 +        ...window.__ELECTRON_SHIM__?.services,
-+        appActions: yx,
-+        appUpdates: pye,
-+        downloads: Cye,
+         appActions: tn,
+         appUpdates: cn,
+         clientCoordination: Rn,
+         downloads: Yn,
 +        requestUserInputAutoResolution: {
 +          ...window.__ELECTRON_SHIM__?.services?.requestUserInputAutoResolution,
 +          recordConversationActivity: () => undefined,
 +          setConversationPresented: () => undefined,
 +          snooze: () => undefined,
 +        },
-+      })));
+       })));
    });
- function Oye() {
-   let { port1: e, port2: t } = new MessageChannel();
-@@ -23110,6 +23121,11 @@
+ function er() {
+@@ -3905,6 +3912,11 @@
    );
  }
- async function kye() {
+ async function tr() {
 +  if (window.__ELECTRON_SHIM__ != null) {
-+    ((Ox = Eye), (kx = Eye.services), kx.devboxService);
++    ((nr = Qn), ($ = Qn.services), $.clientCoordination != null && Dn($.clientCoordination), $.devboxService);
 +    return;
 +  }
 +
-   ((Ox = Oye()), (kx = await Ox.services), kx.devboxService);
- }
- var Ox,
+   ((nr = er()),
+     ($ = await nr.services),
+     $.clientCoordination != null && Dn($.clientCoordination),

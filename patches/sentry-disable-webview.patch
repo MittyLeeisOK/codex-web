@@ -1,10 +1,10 @@
---- a/webview/assets/app-initial~app-main~pull-request-code-review~onboarding-page~hotkey-window-thread-page~cha~b76hmflu-CeoeefuW.js
-+++ b/webview/assets/app-initial~app-main~pull-request-code-review~onboarding-page~hotkey-window-thread-page~cha~b76hmflu-CeoeefuW.js
-@@ -2388,6 +2388,7 @@
-     n = V(e.appVersion),
+--- a/webview/assets/app-initial~artifact-tab-content.electron~notebook-preview-panel~app-main~appgen-settings-p~jj50pjos-D3LKdNnF.js
++++ b/webview/assets/app-initial~artifact-tab-content.electron~notebook-preview-panel~app-main~appgen-settings-p~jj50pjos-D3LKdNnF.js
+@@ -8630,6 +8630,7 @@
+     n = h(e.appVersion),
      r = e.buildFlavor !== `prod`;
-   (ZNe({
+   (Wh({
 +    enabled: !1,
-     beforeSend: Ht,
-     dsn: Re,
-     environment: iPe,
+     beforeSend: de,
+     dsn: p,
+     environment: Qh,

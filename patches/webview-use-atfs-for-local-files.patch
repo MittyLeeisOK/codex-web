@@ -1,11 +1,11 @@
---- a/webview/assets/app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~gvvmoah5-BM6D2haX.js
-+++ b/webview/assets/app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~gvvmoah5-BM6D2haX.js
-@@ -120437,7 +120437,7 @@
+--- a/webview/assets/app-initial~artifact-tab-content.electron~notebook-preview-panel~app-main~first-run~appgen-~f83t1tf1-BBTOXWeK.js
++++ b/webview/assets/app-initial~artifact-tab-content.electron~notebook-preview-panel~app-main~first-run~appgen-~f83t1tf1-BBTOXWeK.js
+@@ -1620,7 +1620,7 @@
          })));
    });
- function yF(e) {
--  return `${Dot}${Eot(e)}`;
-+  return Eot(e);
+ function hn(e) {
+-  return `${vn}${_n(e)}`;
++  return _n(e);
  }
- function Tot(e) {
-   return Eot(e);
+ function gn(e) {
+   return _n(e);

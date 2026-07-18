@@ -1,8 +1,8 @@
---- a/webview/assets/app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~gvvmoah5-BM6D2haX.js
-+++ b/webview/assets/app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~gvvmoah5-BM6D2haX.js
-@@ -189260,8 +189260,18 @@
+--- a/webview/assets/app-initial~artifact-tab-content.electron~app-main~appgen-settings-page~page~pull-request-c~cmwz7z7b-D8GlEgh9.js
++++ b/webview/assets/app-initial~artifact-tab-content.electron~app-main~appgen-settings-page~page~pull-request-c~cmwz7z7b-D8GlEgh9.js
+@@ -13276,8 +13276,18 @@
      f = new EventTarget(),
-     p = new m1t(),
+     p = new Na(),
      m = s,
 +    inputModeDisabled = !1,
 +    getAttributes = () =>
@@ -14,15 +14,15 @@
 +        ((inputModeDisabled = e),
 +        h.isDestroyed || h.setProps({ attributes: getAttributes }));
 +    },
-     h = new kL(null, {
+     h = new hn(null, {
 -      attributes: { spellcheck: `true` },
 +      attributes: getAttributes,
-       state: Hre.create({
-         schema: tJ,
+       state: Zt.create({
+         schema: $,
          doc:
-@@ -189392,6 +189402,17 @@
+@@ -13408,6 +13418,17 @@
          (h.updateState(t),
-           f.dispatchEvent(new CustomEvent(hq, { detail: e.docChanged })));
+           f.dispatchEvent(new CustomEvent(lt, { detail: e.docChanged })));
        },
 +      handleDOMEvents: {
 +        mousedown(e, t) {
