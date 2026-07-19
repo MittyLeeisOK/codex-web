@@ -1,4 +1,5 @@
-import { ProxyAgent } from "undici";
+import { ProxyAgent, request as undiciRequest } from "undici";
+import { Readable } from "node:stream";
 
 type StubFunction = (...args: unknown[]) => unknown;
 type StubListener = (...args: unknown[]) => void;
@@ -68,6 +69,69 @@ function log(method: string, args: unknown[]): void {
     return;
   }
   console.log(`[electron-main-stub] ${method}`, args);
+}
+
+type NetRequestOptions = {
+  method?: string;
+  url: string | URL;
+  headers?: Record<string, string | number | string[] | undefined>;
+  useSessionCookies?: boolean;
+};
+
+type NetUploadProgress = {
+  active: boolean;
+  started: boolean;
+  current: number;
+  total: number;
+};
+
+type NetResponseStub = {
+  statusCode: number;
+  statusMessage: string;
+  headers: Record<string, string | string[]>;
+  on: (event: string, listener: StubListener) => unknown;
+};
+
+type NetClientRequestStub = {
+  setHeader: (name: string, value: string) => void;
+  getHeader: (name: string) => string | undefined;
+  on: (event: string, listener: StubListener) => NetClientRequestStub;
+  once: (event: string, listener: StubListener) => NetClientRequestStub;
+  getUploadProgress: () => NetUploadProgress;
+  write: (
+    chunk: Buffer | ArrayBuffer | Uint8Array | string,
+    encoding?: BufferEncoding,
+  ) => boolean;
+  abort: () => void;
+  end: (chunk?: Buffer | ArrayBuffer | Uint8Array | string) => void;
+};
+
+class NetUploadBodyStream extends Readable {
+  private offset = 0;
+  private readonly chunkSize = 64 * 1024;
+
+  constructor(
+    private readonly body: Buffer,
+    private readonly onProgress: (sent: number) => void,
+    private readonly isAborted: () => boolean,
+  ) {
+    super();
+  }
+
+  override _read(): void {
+    if (this.isAborted()) {
+      this.push(null);
+      return;
+    }
+    if (this.offset >= this.body.length) {
+      this.push(null);
+      return;
+    }
+    const end = Math.min(this.offset + this.chunkSize, this.body.length);
+    this.push(this.body.subarray(this.offset, end));
+    this.offset = end;
+    this.onProgress(this.offset);
+  }
 }
 
 const proxyAgents = new Map<string, ProxyAgent>();
@@ -887,6 +951,10 @@ const crashReporter = {
 };
 
 const net = {
+  isOnline(): boolean {
+    // log("net.isOnline", []);
+    return true;
+  },
   async fetch(input: string | URL, init?: RequestInit): Promise<Response> {
     // log("net.fetch", [input, init]);
     if (typeof globalThis.fetch === "function") {
@@ -899,28 +967,188 @@ const net = {
     }
     return new Response("", { status: 204 });
   },
-  request(...args: unknown[]): {
-    getHeader: (name: string) => string | undefined;
-    once: (event: string, listener: StubListener) => unknown;
-    setHeader: (name: string, value: string) => void;
-  } {
-    // log("net.request", args);
+  request(options: NetRequestOptions | string): NetClientRequestStub {
+    // log("net.request", [options]);
+    const opts: NetRequestOptions =
+      typeof options === "string" ? { url: options } : options;
+    const method = (opts.method ?? "GET").toUpperCase();
+    const url = String(opts.url);
     const headers = new Map<string, string>();
-    const request = {
+    if (opts.headers) {
+      for (const [name, value] of Object.entries(opts.headers)) {
+        if (value !== undefined) {
+          headers.set(name.toLowerCase(), String(value));
+        }
+      }
+    }
+
+    const listeners = new Map<string, Set<StubListener>>();
+    const addListener = (event: string, listener: StubListener): void => {
+      let set = listeners.get(event);
+      if (!set) {
+        set = new Set();
+        listeners.set(event, set);
+      }
+      set.add(listener);
+    };
+    const emit = (event: string, ...args: unknown[]): void => {
+      for (const listener of listeners.get(event) ?? []) {
+        listener(...args);
+      }
+    };
+
+    const chunks: Buffer[] = [];
+    let ended = false;
+    let aborted = false;
+    let uploadTotal = 0;
+    let uploadCurrent = 0;
+    let uploadStarted = false;
+
+    const toBuffer = (
+      chunk: Buffer | ArrayBuffer | Uint8Array | string,
+      encoding?: BufferEncoding,
+    ): Buffer => {
+      if (Buffer.isBuffer(chunk)) return chunk;
+      if (chunk instanceof ArrayBuffer) return Buffer.from(chunk);
+      if (chunk instanceof Uint8Array) return Buffer.from(chunk);
+      return Buffer.from(String(chunk), encoding ?? "utf8");
+    };
+
+    const requestStub: NetClientRequestStub = {
       setHeader(name: string, value: string): void {
-        // log("net.request.setHeader", [name, value]);
         headers.set(name.toLowerCase(), value);
       },
       getHeader(name: string): string | undefined {
-        // log("net.request.getHeader", [name]);
         return headers.get(name.toLowerCase());
       },
-      once(event: string, listener: StubListener): unknown {
-        // log("net.request.once", [event, listener]);
-        return request;
+      on(event: string, listener: StubListener): NetClientRequestStub {
+        addListener(event, listener);
+        return requestStub;
+      },
+      once(event: string, listener: StubListener): NetClientRequestStub {
+        const wrapper: StubListener = (...args: unknown[]) => {
+          listeners.get(event)?.delete(wrapper);
+          listener(...args);
+        };
+        addListener(event, wrapper);
+        return requestStub;
+      },
+      getUploadProgress(): NetUploadProgress {
+        return {
+          active: uploadStarted && !aborted && !ended,
+          started: uploadStarted,
+          current: uploadCurrent,
+          total: uploadTotal,
+        };
+      },
+      write(
+        chunk: Buffer | ArrayBuffer | Uint8Array | string,
+        encoding?: BufferEncoding,
+      ): boolean {
+        if (ended || aborted) return false;
+        chunks.push(toBuffer(chunk, encoding));
+        return true;
+      },
+      abort(): void {
+        if (aborted) return;
+        aborted = true;
+        emit("abort");
+      },
+      end(chunk?: Buffer | ArrayBuffer | Uint8Array | string): void {
+        if (ended) return;
+        if (chunk != null) chunks.push(toBuffer(chunk));
+        ended = true;
+
+        const body = Buffer.concat(chunks);
+        uploadTotal = body.length;
+        uploadStarted = true;
+
+        const bodyStream =
+          body.length === 0
+            ? undefined
+            : new NetUploadBodyStream(
+                body,
+                (sent) => {
+                  uploadCurrent = sent;
+                },
+                () => aborted,
+              );
+
+        const headersRecord: Record<string, string> = {};
+        for (const [name, value] of headers) headersRecord[name] = value;
+
+        const proxyUrl = getProxyUrlForRequest(url);
+        const dispatcher = proxyUrl ? getProxyAgent(proxyUrl) : undefined;
+
+        void undiciRequest(url, {
+          method: method as Parameters<typeof undiciRequest>[1] extends {
+            method?: infer M;
+          }
+            ? M
+            : never,
+          headers: headersRecord,
+          body: bodyStream,
+          dispatcher,
+        })
+          .then((response) => {
+            if (aborted) return;
+            uploadCurrent = uploadTotal;
+
+            const responseListeners = new Map<string, Set<StubListener>>();
+            const addResponseListener = (
+              event: string,
+              listener: StubListener,
+            ): void => {
+              let set = responseListeners.get(event);
+              if (!set) {
+                set = new Set();
+                responseListeners.set(event, set);
+              }
+              set.add(listener);
+            };
+            const emitResponse = (event: string, ...args: unknown[]): void => {
+              for (const listener of responseListeners.get(event) ?? []) {
+                listener(...args);
+              }
+            };
+
+            const responseHeaders: Record<string, string | string[]> = {};
+            for (const [name, value] of Object.entries(response.headers)) {
+              if (value !== undefined) {
+                responseHeaders[name] = value as string | string[];
+              }
+            }
+
+            const responseStub: NetResponseStub = {
+              statusCode: response.statusCode,
+              statusMessage: "",
+              headers: responseHeaders,
+              on(event: string, listener: StubListener): unknown {
+                addResponseListener(event, listener);
+                return responseStub;
+              },
+            };
+
+            emit("response", responseStub);
+            response.body.on("data", (data: Buffer) =>
+              emitResponse("data", data),
+            );
+            response.body.on("end", () => emitResponse("end"));
+            response.body.on("error", (error: Error) =>
+              emitResponse("error", error),
+            );
+          })
+          .catch((error: unknown) => {
+            if (aborted) return;
+            emit(
+              "error",
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          });
       },
     };
-    return request;
+
+    return requestStub;
   },
 };
 

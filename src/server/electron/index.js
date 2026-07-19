@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.dialog = exports.crashReporter = exports.webContents = exports.WebContentsView = exports.utilityProcess = exports.Tray = exports.session = exports.screen = exports.protocol = exports.powerMonitor = exports.Notification = exports.nativeTheme = exports.nativeImage = exports.net = exports.MessageChannelMain = exports.MenuItem = exports.Menu = exports.ipcMain = exports.BrowserWindow = exports.autoUpdater = exports.app = void 0;
 const undici_1 = require("undici");
+const node_stream_1 = require("node:stream");
 function getIpcMainBridgeState() {
     const globals = globalThis;
     if (!globals.__codexElectronIpcBridge) {
@@ -14,6 +15,33 @@ function log(method, args) {
         return;
     }
     console.log(`[electron-main-stub] ${method}`, args);
+}
+class NetUploadBodyStream extends node_stream_1.Readable {
+    body;
+    onProgress;
+    isAborted;
+    offset = 0;
+    chunkSize = 64 * 1024;
+    constructor(body, onProgress, isAborted) {
+        super();
+        this.body = body;
+        this.onProgress = onProgress;
+        this.isAborted = isAborted;
+    }
+    _read() {
+        if (this.isAborted()) {
+            this.push(null);
+            return;
+        }
+        if (this.offset >= this.body.length) {
+            this.push(null);
+            return;
+        }
+        const end = Math.min(this.offset + this.chunkSize, this.body.length);
+        this.push(this.body.subarray(this.offset, end));
+        this.offset = end;
+        this.onProgress(this.offset);
+    }
 }
 const proxyAgents = new Map();
 const browserUserAgent = "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36";
@@ -695,6 +723,10 @@ const crashReporter = {
 };
 exports.crashReporter = crashReporter;
 const net = {
+    isOnline() {
+        // log("net.isOnline", []);
+        return true;
+    },
     async fetch(input, init) {
         // log("net.fetch", [input, init]);
         if (typeof globalThis.fetch === "function") {
@@ -707,24 +739,158 @@ const net = {
         }
         return new Response("", { status: 204 });
     },
-    request(...args) {
-        // log("net.request", args);
+    request(options) {
+        // log("net.request", [options]);
+        const opts = typeof options === "string" ? { url: options } : options;
+        const method = (opts.method ?? "GET").toUpperCase();
+        const url = String(opts.url);
         const headers = new Map();
-        const request = {
+        if (opts.headers) {
+            for (const [name, value] of Object.entries(opts.headers)) {
+                if (value !== undefined) {
+                    headers.set(name.toLowerCase(), String(value));
+                }
+            }
+        }
+        const listeners = new Map();
+        const addListener = (event, listener) => {
+            let set = listeners.get(event);
+            if (!set) {
+                set = new Set();
+                listeners.set(event, set);
+            }
+            set.add(listener);
+        };
+        const emit = (event, ...args) => {
+            for (const listener of listeners.get(event) ?? []) {
+                listener(...args);
+            }
+        };
+        const chunks = [];
+        let ended = false;
+        let aborted = false;
+        let uploadTotal = 0;
+        let uploadCurrent = 0;
+        let uploadStarted = false;
+        const toBuffer = (chunk, encoding) => {
+            if (Buffer.isBuffer(chunk))
+                return chunk;
+            if (chunk instanceof ArrayBuffer)
+                return Buffer.from(chunk);
+            if (chunk instanceof Uint8Array)
+                return Buffer.from(chunk);
+            return Buffer.from(String(chunk), encoding ?? "utf8");
+        };
+        const requestStub = {
             setHeader(name, value) {
-                // log("net.request.setHeader", [name, value]);
                 headers.set(name.toLowerCase(), value);
             },
             getHeader(name) {
-                // log("net.request.getHeader", [name]);
                 return headers.get(name.toLowerCase());
             },
+            on(event, listener) {
+                addListener(event, listener);
+                return requestStub;
+            },
             once(event, listener) {
-                // log("net.request.once", [event, listener]);
-                return request;
+                const wrapper = (...args) => {
+                    listeners.get(event)?.delete(wrapper);
+                    listener(...args);
+                };
+                addListener(event, wrapper);
+                return requestStub;
+            },
+            getUploadProgress() {
+                return {
+                    active: uploadStarted && !aborted && !ended,
+                    started: uploadStarted,
+                    current: uploadCurrent,
+                    total: uploadTotal,
+                };
+            },
+            write(chunk, encoding) {
+                if (ended || aborted)
+                    return false;
+                chunks.push(toBuffer(chunk, encoding));
+                return true;
+            },
+            abort() {
+                if (aborted)
+                    return;
+                aborted = true;
+                emit("abort");
+            },
+            end(chunk) {
+                if (ended)
+                    return;
+                if (chunk != null)
+                    chunks.push(toBuffer(chunk));
+                ended = true;
+                const body = Buffer.concat(chunks);
+                uploadTotal = body.length;
+                uploadStarted = true;
+                const bodyStream = body.length === 0
+                    ? undefined
+                    : new NetUploadBodyStream(body, (sent) => {
+                        uploadCurrent = sent;
+                    }, () => aborted);
+                const headersRecord = {};
+                for (const [name, value] of headers)
+                    headersRecord[name] = value;
+                const proxyUrl = getProxyUrlForRequest(url);
+                const dispatcher = proxyUrl ? getProxyAgent(proxyUrl) : undefined;
+                void (0, undici_1.request)(url, {
+                    method: method,
+                    headers: headersRecord,
+                    body: bodyStream,
+                    dispatcher,
+                })
+                    .then((response) => {
+                    if (aborted)
+                        return;
+                    uploadCurrent = uploadTotal;
+                    const responseListeners = new Map();
+                    const addResponseListener = (event, listener) => {
+                        let set = responseListeners.get(event);
+                        if (!set) {
+                            set = new Set();
+                            responseListeners.set(event, set);
+                        }
+                        set.add(listener);
+                    };
+                    const emitResponse = (event, ...args) => {
+                        for (const listener of responseListeners.get(event) ?? []) {
+                            listener(...args);
+                        }
+                    };
+                    const responseHeaders = {};
+                    for (const [name, value] of Object.entries(response.headers)) {
+                        if (value !== undefined) {
+                            responseHeaders[name] = value;
+                        }
+                    }
+                    const responseStub = {
+                        statusCode: response.statusCode,
+                        statusMessage: "",
+                        headers: responseHeaders,
+                        on(event, listener) {
+                            addResponseListener(event, listener);
+                            return responseStub;
+                        },
+                    };
+                    emit("response", responseStub);
+                    response.body.on("data", (data) => emitResponse("data", data));
+                    response.body.on("end", () => emitResponse("end"));
+                    response.body.on("error", (error) => emitResponse("error", error));
+                })
+                    .catch((error) => {
+                    if (aborted)
+                        return;
+                    emit("error", error instanceof Error ? error : new Error(String(error)));
+                });
             },
         };
-        return request;
+        return requestStub;
     },
 };
 exports.net = net;

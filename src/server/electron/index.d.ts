@@ -1,4 +1,26 @@
 type StubListener = (...args: unknown[]) => void;
+type NetRequestOptions = {
+    method?: string;
+    url: string | URL;
+    headers?: Record<string, string | number | string[] | undefined>;
+    useSessionCookies?: boolean;
+};
+type NetUploadProgress = {
+    active: boolean;
+    started: boolean;
+    current: number;
+    total: number;
+};
+type NetClientRequestStub = {
+    setHeader: (name: string, value: string) => void;
+    getHeader: (name: string) => string | undefined;
+    on: (event: string, listener: StubListener) => NetClientRequestStub;
+    once: (event: string, listener: StubListener) => NetClientRequestStub;
+    getUploadProgress: () => NetUploadProgress;
+    write: (chunk: Buffer | ArrayBuffer | Uint8Array | string, encoding?: BufferEncoding) => boolean;
+    abort: () => void;
+    end: (chunk?: Buffer | ArrayBuffer | Uint8Array | string) => void;
+};
 declare const appBase: {
     name: string;
     isPackaged: boolean;
@@ -125,12 +147,9 @@ declare const crashReporter: {
     start(...args: unknown[]): void;
 };
 declare const net: {
+    isOnline(): boolean;
     fetch(input: string | URL, init?: RequestInit): Promise<Response>;
-    request(...args: unknown[]): {
-        getHeader: (name: string) => string | undefined;
-        once: (event: string, listener: StubListener) => unknown;
-        setHeader: (name: string, value: string) => void;
-    };
+    request(options: NetRequestOptions | string): NetClientRequestStub;
 };
 declare const autoUpdater: {
     addListener: (event: string, listener: StubListener) => unknown;

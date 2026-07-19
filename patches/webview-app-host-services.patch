@@ -6,7 +6,10 @@
        (Qn = new Zn({
 +        ...window.__ELECTRON_SHIM__?.services,
          appActions: tn,
-         appUpdates: cn,
+-        appUpdates: cn,
++        appUpdates: Object.assign(cn, {
++          setSparkleQueryParams: cn.setSparkleQueryParams ?? (() => undefined),
++        }),
          clientCoordination: Rn,
          downloads: Yn,
 +        requestUserInputAutoResolution: {
