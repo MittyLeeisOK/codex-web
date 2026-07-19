@@ -48,6 +48,7 @@ patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/we
 # re-mapped (see logs/codex-core-update-2026-07-18-assessment.md).
 # patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-prompt-search-param.patch
 patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-app-host-services.patch
+patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/webview-traffic-light-inset-browser-mode.patch
 patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/sentry-disable-shell.patch
 patch --batch --forward --strip 1 --fuzz 3 --directory scratch/asar < patches/sentry-disable-webview.patch
 rm -rf scratch/asar/node_modules/better-sqlite3

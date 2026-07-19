@@ -1,0 +1,10 @@
+--- a/webview/assets/app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~app-main~appgen-s~j5d6n91g-DVu-pwEX.js
++++ b/webview/assets/app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~app-main~appgen-s~j5d6n91g-DVu-pwEX.js
+@@ -5539,6 +5539,7 @@
+ }
+ function rc(e, t) {
+   if (e) return cc.default;
++  if (typeof window < `u` && window.__ELECTRON_SHIM__) return cc.default;
+   if (Ke()) return t ?? cc.applicationMenu;
+   if (typeof navigator > `u`) return cc.default;
+   let n = navigator,
